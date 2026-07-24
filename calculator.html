@@ -767,7 +767,8 @@
 
       let people = load();
       let notes = localStorage.getItem(NOTES_STORAGE_KEY) || "";
-      let preset = localStorage.getItem(PRESET_STORAGE_KEY) ?? DEFAULT_PRESET;
+      const savedPreset = localStorage.getItem(PRESET_STORAGE_KEY);
+      let preset = savedPreset?.trim() ? savedPreset : DEFAULT_PRESET;
 
       if (window.matchMedia("(pointer: fine)").matches && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         let pointerX = 0;
@@ -1027,7 +1028,11 @@
 
         if (event.target.id === "presetInput") {
           preset = event.target.value;
-          localStorage.setItem(PRESET_STORAGE_KEY, preset);
+          if (preset.trim()) {
+            localStorage.setItem(PRESET_STORAGE_KEY, preset);
+          } else {
+            localStorage.removeItem(PRESET_STORAGE_KEY);
+          }
           return;
         }
 
