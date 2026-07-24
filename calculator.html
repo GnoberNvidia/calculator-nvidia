@@ -675,6 +675,18 @@
       text-align: right;
     }
 
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     @media (max-width: 650px) {
       :root { --panel-width: 365px; }
       .app { padding: 26px 12px 32px; }
@@ -712,6 +724,7 @@
 </head>
 <body>
   <div class="cursor-light" id="cursorLight" aria-hidden="true"></div>
+  <div class="sr-only" id="historyStatus" role="status" aria-live="polite"></div>
   <div class="visual-effects" aria-hidden="true">
     <div class="gpu-cube gpu-cube-one">
       <span class="cube-front"></span>
@@ -764,11 +777,16 @@
       const combinedTime = document.querySelector("#combinedTime");
       const combinedMeta = document.querySelector("#combinedMeta");
       const cursorLight = document.querySelector("#cursorLight");
+      const historyStatus = document.querySelector("#historyStatus");
 
       let people = load();
       let notes = localStorage.getItem(NOTES_STORAGE_KEY) || "";
       const savedPreset = localStorage.getItem(PRESET_STORAGE_KEY);
       let preset = savedPreset?.trim() ? savedPreset : DEFAULT_PRESET;
+      const undoStack = [];
+      const redoStack = [];
+      const HISTORY_LIMIT = 100;
+      let editStartSnapshot = null;
 
       if (window.matchMedia("(pointer: fine)").matches && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         let pointerX = 0;
@@ -814,6 +832,65 @@
 
       function save() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(people));
+      }
+
+      function stateSnapshot() {
+        return JSON.stringify({ people, notes, preset });
+      }
+
+      function pushUndoSnapshot(snapshot) {
+        if (!snapshot || undoStack.at(-1) === snapshot) return;
+        undoStack.push(snapshot);
+        if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+        redoStack.length = 0;
+      }
+
+      function recordCurrentState() {
+        pushUndoSnapshot(stateSnapshot());
+      }
+
+      function persistState() {
+        save();
+        localStorage.setItem(NOTES_STORAGE_KEY, notes);
+        if (preset.trim()) {
+          localStorage.setItem(PRESET_STORAGE_KEY, preset);
+        } else {
+          localStorage.removeItem(PRESET_STORAGE_KEY);
+        }
+      }
+
+      function restoreSnapshot(snapshot) {
+        const state = JSON.parse(snapshot);
+        people = state.people;
+        notes = state.notes ?? "";
+        preset = state.preset ?? DEFAULT_PRESET;
+        persistState();
+        render();
+      }
+
+      function announceHistory(message) {
+        historyStatus.textContent = "";
+        requestAnimationFrame(() => {
+          historyStatus.textContent = message;
+        });
+      }
+
+      function undo() {
+        const snapshot = undoStack.pop();
+        if (!snapshot) return false;
+        redoStack.push(stateSnapshot());
+        restoreSnapshot(snapshot);
+        announceHistory("Change undone");
+        return true;
+      }
+
+      function redo() {
+        const snapshot = redoStack.pop();
+        if (!snapshot) return false;
+        undoStack.push(stateSnapshot());
+        restoreSnapshot(snapshot);
+        announceHistory("Change redone");
+        return true;
       }
 
       function escapeHtml(value) {
@@ -992,6 +1069,7 @@
         if (button.dataset.action === "delete-row") {
           const row = findRow(person, button);
           if (!row) return;
+          recordCurrentState();
           person.rows = person.rows.filter((item) => item.id !== row.id);
           renumberVideoRows(person);
           save();
@@ -1000,6 +1078,7 @@
         }
 
         if (button.dataset.action === "add-row") {
+          recordCurrentState();
           const row = newRow(nextVideoNumber(person));
           person.rows.push(row);
           save();
@@ -1013,6 +1092,7 @@
         }
 
         if (button.dataset.action === "delete-person") {
+          recordCurrentState();
           people = people.filter((item) => item.id !== person.id);
           save();
           render();
@@ -1060,6 +1140,25 @@
         }
       });
 
+      grid.addEventListener("focusin", (event) => {
+        if (event.target.matches("input, textarea")) {
+          editStartSnapshot = stateSnapshot();
+        }
+      });
+
+      grid.addEventListener("change", (event) => {
+        if (!event.target.matches("input, textarea") || !editStartSnapshot) return;
+        if (editStartSnapshot !== stateSnapshot()) {
+          pushUndoSnapshot(editStartSnapshot);
+        }
+      });
+
+      grid.addEventListener("focusout", (event) => {
+        if (event.target.matches("input, textarea")) {
+          editStartSnapshot = null;
+        }
+      });
+
       grid.addEventListener("keydown", (event) => {
         if (event.key !== "Enter" || event.target.dataset.field !== "seconds") return;
         event.preventDefault();
@@ -1076,6 +1175,7 @@
       });
 
       addPersonButton.addEventListener("click", () => {
+        recordCurrentState();
         const person = newPerson(people.length + 1);
         people.push(person);
         save();
@@ -1084,6 +1184,19 @@
           worksheet.scrollTo({ left: worksheet.scrollWidth, behavior: "smooth" });
           grid.querySelector(`[data-person-id="${person.id}"] .name-input`)?.select();
         });
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if ((!event.ctrlKey && !event.metaKey) || event.altKey) return;
+        if (event.target.matches("input, textarea, [contenteditable='true']")) return;
+
+        const key = event.key.toLowerCase();
+        const isUndo = key === "z" && !event.shiftKey;
+        const isRedo = key === "y" || (key === "z" && event.shiftKey);
+        if (!isUndo && !isRedo) return;
+
+        const handled = isUndo ? undo() : redo();
+        if (handled) event.preventDefault();
       });
 
       render();
