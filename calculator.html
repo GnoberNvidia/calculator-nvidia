@@ -1,0 +1,1088 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0d0c">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <title>Video Time Sheet</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0d0c;
+      --surface: #111412;
+      --surface-2: #171a18;
+      --surface-3: #1d211e;
+      --line: #2a302c;
+      --line-strong: #3a423d;
+      --text: #f4f6f4;
+      --muted: #929b95;
+      --green: #76b900;
+      --green-hover: #8bd000;
+      --green-bright: #9be000;
+      --green-deep: #4f7c00;
+      --green-soft: rgba(118, 185, 0, 0.12);
+      --green-glow: rgba(118, 185, 0, 0.22);
+      --danger: #ff6259;
+      --panel-width: 440px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--bg); }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 12% -8%, rgba(118, 185, 0, 0.13), transparent 30rem),
+        radial-gradient(circle at 92% 18%, rgba(118, 185, 0, 0.055), transparent 26rem),
+        linear-gradient(180deg, #090b0a 0%, var(--bg) 42%, #080a09 100%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0 0 auto;
+      z-index: 20;
+      height: 4px;
+      background: linear-gradient(90deg, var(--green-deep), var(--green-bright) 48%, var(--green) 76%, var(--green-deep));
+      box-shadow: 0 0 18px rgba(118, 185, 0, 0.48);
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      opacity: 0.22;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: linear-gradient(to bottom, #000, transparent 72%);
+    }
+
+    .cursor-light {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 15;
+      width: 460px;
+      height: 460px;
+      pointer-events: none;
+      opacity: 0;
+      border-radius: 50%;
+      background: radial-gradient(
+        circle,
+        rgba(155, 224, 0, 0.16) 0%,
+        rgba(118, 185, 0, 0.075) 30%,
+        rgba(118, 185, 0, 0.025) 52%,
+        transparent 72%
+      );
+      mix-blend-mode: screen;
+      filter: blur(2px);
+      will-change: transform, opacity;
+      transition: opacity 220ms ease;
+    }
+
+    .visual-effects {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      overflow: hidden;
+      pointer-events: none;
+      perspective: 900px;
+    }
+
+    .gpu-cube {
+      --cube-size: 86px;
+      position: absolute;
+      width: var(--cube-size);
+      height: var(--cube-size);
+      transform-style: preserve-3d;
+      filter: drop-shadow(0 22px 26px rgba(0, 0, 0, 0.48));
+    }
+
+    .gpu-cube span {
+      position: absolute;
+      inset: 0;
+      border: 1px solid rgba(155, 224, 0, 0.32);
+      background:
+        linear-gradient(135deg, rgba(155, 224, 0, 0.2), rgba(118, 185, 0, 0.035) 58%),
+        repeating-linear-gradient(90deg, transparent 0 12px, rgba(155, 224, 0, 0.045) 12px 13px),
+        rgba(12, 17, 13, 0.82);
+      box-shadow: inset 0 0 24px rgba(118, 185, 0, 0.055);
+      backface-visibility: hidden;
+    }
+
+    .gpu-cube .cube-front { transform: translateZ(calc(var(--cube-size) / 2)); }
+    .gpu-cube .cube-right {
+      transform: rotateY(90deg) translateZ(calc(var(--cube-size) / 2));
+      background:
+        linear-gradient(135deg, rgba(118, 185, 0, 0.12), transparent 62%),
+        #0a0d0b;
+    }
+    .gpu-cube .cube-top {
+      transform: rotateX(90deg) translateZ(calc(var(--cube-size) / 2));
+      background:
+        linear-gradient(145deg, rgba(155, 224, 0, 0.3), rgba(118, 185, 0, 0.06)),
+        #111611;
+    }
+
+    .gpu-cube::after {
+      content: "";
+      position: absolute;
+      top: 17%;
+      left: 17%;
+      width: 40%;
+      height: 40%;
+      z-index: 2;
+      border: 1px solid rgba(190, 255, 75, 0.5);
+      background: linear-gradient(135deg, var(--green-bright), var(--green-deep));
+      box-shadow: 0 0 18px rgba(118, 185, 0, 0.3);
+      transform: translateZ(calc((var(--cube-size) / 2) + 1px));
+    }
+
+    .gpu-cube-one {
+      top: 18%;
+      right: 7%;
+      opacity: 0.34;
+      animation: cube-float-one 8s ease-in-out infinite;
+    }
+
+    .gpu-cube-two {
+      --cube-size: 58px;
+      right: 4%;
+      bottom: 5%;
+      opacity: 0.28;
+      animation: cube-float-two 10s ease-in-out infinite;
+    }
+
+    @keyframes cube-float-one {
+      0%, 100% { transform: rotateX(-18deg) rotateY(34deg) rotateZ(-8deg) translateY(0); }
+      50% { transform: rotateX(-12deg) rotateY(48deg) rotateZ(-2deg) translateY(-14px); }
+    }
+
+    @keyframes cube-float-two {
+      0%, 100% { transform: rotateX(-22deg) rotateY(-32deg) rotateZ(10deg) translateY(0); }
+      50% { transform: rotateX(-14deg) rotateY(-46deg) rotateZ(4deg) translateY(-10px); }
+    }
+
+    button, input { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      min-height: 100vh;
+      padding: 34px clamp(16px, 3vw, 44px) 42px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      max-width: 1500px;
+      margin: 0 auto 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      display: block;
+      flex: 0 0 auto;
+      border: 1px solid rgba(194, 255, 88, 0.66);
+      border-radius: 3px;
+      object-fit: cover;
+      box-shadow: 0 0 0 3px rgba(118, 185, 0, 0.09), 0 8px 22px rgba(118, 185, 0, 0.18);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(21px, 3vw, 29px);
+      font-weight: 780;
+      line-height: 1.15;
+      letter-spacing: -0.025em;
+      text-shadow: 0 2px 22px rgba(255, 255, 255, 0.06);
+    }
+
+    .kicker {
+      margin: 4px 0 0;
+      color: #9aa69e;
+      font-size: 12px;
+      letter-spacing: 0.055em;
+      text-transform: uppercase;
+    }
+
+    .primary-button {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex: 0 0 auto;
+      padding: 0 15px;
+      border: 1px solid var(--green-bright);
+      border-radius: 3px;
+      background: linear-gradient(180deg, var(--green-bright), var(--green));
+      color: #090b09;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 0 0 1px rgba(118, 185, 0, 0.14), 0 8px 24px rgba(118, 185, 0, 0.16);
+      transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+    }
+
+    .primary-button:hover {
+      background: linear-gradient(180deg, #abef24, var(--green-hover));
+      border-color: #b6f33f;
+      box-shadow: 0 0 0 1px rgba(118, 185, 0, 0.2), 0 10px 30px rgba(118, 185, 0, 0.28);
+    }
+    .primary-button:active { transform: translateY(1px); }
+    .primary-button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+    .primary-button .icon { font-size: 19px; line-height: 1; }
+
+    .worksheet-shell {
+      max-width: 1500px;
+      margin: 0 auto;
+      overflow-x: auto;
+      border: 1px solid #303831;
+      border-radius: 5px;
+      background:
+        linear-gradient(135deg, rgba(118, 185, 0, 0.025), transparent 34%),
+        #0d100e;
+      box-shadow:
+        0 24px 70px rgba(0, 0, 0, 0.38),
+        inset 0 1px rgba(255, 255, 255, 0.025);
+      scrollbar-color: #465048 #151816;
+    }
+
+    .people-grid {
+      min-width: min-content;
+      display: flex;
+      align-items: stretch;
+      gap: 18px;
+      padding: 18px;
+    }
+
+    .person-panel {
+      width: var(--panel-width);
+      min-width: var(--panel-width);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid #3c463e;
+      border-radius: 5px;
+      background: linear-gradient(180deg, #121613, var(--surface));
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .person-panel:hover {
+      border-color: #536052;
+      box-shadow: 0 16px 38px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(118, 185, 0, 0.045);
+    }
+
+    .person-toolbar {
+      height: 48px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 44px 44px;
+      align-items: stretch;
+      background:
+        linear-gradient(90deg, rgba(118, 185, 0, 0.07), transparent 42%),
+        linear-gradient(180deg, #252b25, #1d221e);
+      border-bottom: 1px solid #4d594f;
+      box-shadow: inset 0 3px 0 var(--green), inset 0 1px rgba(255, 255, 255, 0.04);
+    }
+
+    .name-input {
+      min-width: 0;
+      width: 100%;
+      padding: 0 14px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .name-input:focus { background: rgba(118, 185, 0, 0.08); box-shadow: inset 0 -2px 0 var(--green); }
+
+    .icon-button {
+      width: 44px;
+      height: 47px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      border: 0;
+      border-left: 1px solid #4d594f;
+      background: transparent;
+      color: #dbe1dc;
+      font-size: 21px;
+      cursor: pointer;
+      transition: background 130ms ease, color 130ms ease;
+    }
+
+    .icon-button:hover { background: var(--green); color: #080a08; }
+    .icon-button:focus-visible { outline: 2px solid var(--green-bright); outline-offset: -3px; }
+    .delete-person:hover { background: rgba(255, 98, 89, 0.14); color: var(--danger); }
+
+    .table-wrap {
+      flex: 1;
+      overflow: auto;
+      min-height: 332px;
+      max-height: min(62vh, 620px);
+      scrollbar-color: #465048 #151816;
+    }
+
+    table {
+      width: 100%;
+      border-spacing: 0;
+      border-collapse: separate;
+      table-layout: fixed;
+    }
+
+    col.video-col { width: 31%; }
+    col.seconds-col { width: 26%; }
+    col.file-col { width: auto; }
+    col.delete-col { width: 36px; }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      height: 42px;
+      padding: 0 11px;
+      border-bottom: 1px solid #4b574d;
+      background:
+        linear-gradient(180deg, rgba(118, 185, 0, 0.075), transparent),
+        #263028;
+      color: #f7faf7;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: 0.025em;
+      white-space: nowrap;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.44);
+    }
+
+    th + th { border-left: 1px solid #39443c; }
+
+    .action-heading { padding: 0; }
+
+    tbody tr { height: 43px; }
+    tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.018); }
+    tbody tr:hover { background: linear-gradient(90deg, rgba(118, 185, 0, 0.13), rgba(118, 185, 0, 0.055)); }
+
+    td {
+      padding: 0;
+      border-bottom: 1px solid #252b27;
+    }
+
+    td + td { border-left: 1px solid #252b27; }
+
+    .cell-input {
+      width: 100%;
+      height: 43px;
+      padding: 0 11px;
+      border: 0;
+      border-radius: 0;
+      outline: 0;
+      background: transparent;
+      color: #e8ece9;
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cell-input[type="number"] { text-align: right; }
+    .seconds-input { text-align: right; }
+    .cell-input:hover { background: rgba(255, 255, 255, 0.025); }
+    .cell-input:focus { background: #20261f; box-shadow: inset 0 0 0 2px var(--green-bright), 0 0 12px rgba(118, 185, 0, 0.08); }
+    .cell-input::placeholder { color: #59625c; }
+
+    .row-delete-cell { text-align: center; }
+
+    .delete-row {
+      width: 35px;
+      height: 43px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: #68716b;
+      font-size: 17px;
+      line-height: 1;
+      cursor: pointer;
+      transition: background 130ms ease, color 130ms ease;
+    }
+
+    tr:hover .delete-row { color: #aeb6b0; }
+    .delete-row:hover { background: rgba(255, 98, 89, 0.14); color: var(--danger) !important; }
+    .delete-row:focus-visible { outline: 2px solid var(--danger); outline-offset: -2px; color: var(--danger); }
+
+    input[type="number"] { appearance: textfield; }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { margin: 0; appearance: none; }
+
+    .panel-footer {
+      min-height: 62px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-top: 1px solid #465048;
+      background:
+        linear-gradient(90deg, rgba(118, 185, 0, 0.045), transparent 55%),
+        linear-gradient(180deg, #252c26, #202521);
+    }
+
+    .panel-footer-label {
+      display: block;
+      color: #c2c9c3;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .panel-footer-detail {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .person-total {
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 850;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      text-shadow: 0 0 18px rgba(255, 255, 255, 0.07);
+    }
+
+    .person-total span { color: var(--green-bright); font-size: 11px; font-weight: 800; }
+
+    .sidebar-stack {
+      position: relative;
+      width: 320px;
+      min-width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      align-self: stretch;
+      margin-left: 18px;
+      overflow: visible;
+    }
+
+    .sidebar-stack::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -28px;
+      width: 1px;
+      background: var(--line-strong);
+    }
+
+    .notes-panel,
+    .preset-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid #3c463e;
+      border-radius: 5px;
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.018), transparent 36%),
+        #121512;
+      box-shadow: inset 0 3px 0 #586159, 0 12px 32px rgba(0, 0, 0, 0.22);
+    }
+
+    .notes-panel {
+      min-height: 300px;
+      flex: 1;
+    }
+
+    .preset-panel {
+      min-height: 248px;
+      flex: 0 0 auto;
+      box-shadow: inset 0 3px 0 var(--green), 0 12px 32px rgba(0, 0, 0, 0.22);
+    }
+
+    .notes-heading,
+    .preset-heading {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin: 0;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line-strong);
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 800;
+      background: linear-gradient(90deg, rgba(118, 185, 0, 0.055), transparent 62%);
+    }
+
+    .notes-heading-icon,
+    .preset-heading-icon {
+      color: var(--green);
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .notes-input {
+      width: 100%;
+      min-height: 250px;
+      flex: 1;
+      resize: none;
+      padding: 15px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: #e8ece9;
+      font-size: 14px;
+      line-height: 1.65;
+      scrollbar-color: #465048 #151816;
+    }
+
+    .notes-input::placeholder { color: #5f6862; }
+    .notes-input:focus { background: #171b18; box-shadow: inset 0 0 0 2px var(--green); }
+
+    .preset-input {
+      width: 100%;
+      min-height: 148px;
+      resize: vertical;
+      padding: 15px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: #e8ece9;
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .preset-input:focus { background: #171b18; box-shadow: inset 0 0 0 2px var(--green); }
+
+    .preset-actions {
+      min-height: 51px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-top: 1px solid var(--line-strong);
+      background: #20251f;
+    }
+
+    .copy-button {
+      min-height: 34px;
+      padding: 0 12px;
+      border: 1px solid var(--green-bright);
+      border-radius: 3px;
+      background: linear-gradient(180deg, var(--green-bright), var(--green));
+      color: #090b09;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(118, 185, 0, 0.14);
+      transition: background 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+    }
+
+    .copy-button:hover {
+      background: linear-gradient(180deg, #abef24, var(--green-hover));
+      border-color: #b6f33f;
+      box-shadow: 0 8px 22px rgba(118, 185, 0, 0.24);
+    }
+    .copy-button:active { transform: translateY(1px); }
+    .copy-button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+    .copy-status { color: var(--muted); font-size: 12px; }
+
+    .empty-state {
+      width: min(500px, calc(100vw - 68px));
+      min-height: 460px;
+      display: grid;
+      place-items: center;
+      padding: 40px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .empty-state strong { display: block; margin-bottom: 7px; color: var(--text); font-size: 16px; }
+
+    .summary-bar {
+      max-width: 1500px;
+      min-height: 76px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 24px;
+      margin: 18px auto 0;
+      padding: 15px 20px;
+      border: 1px solid #3d473f;
+      border-left: 4px solid var(--green);
+      border-radius: 4px;
+      background:
+        linear-gradient(90deg, rgba(118, 185, 0, 0.09), transparent 30%),
+        linear-gradient(180deg, #171c18, #121512);
+      box-shadow: 0 14px 38px rgba(0, 0, 0, 0.26), inset 0 1px rgba(255, 255, 255, 0.025);
+    }
+
+    .summary-label {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--green-bright);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+    }
+
+    .summary-time {
+      display: block;
+      font-size: clamp(22px, 3vw, 30px);
+      font-weight: 850;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.035em;
+      text-shadow: 0 0 24px rgba(118, 185, 0, 0.08);
+    }
+
+    *::-webkit-scrollbar { width: 11px; height: 11px; }
+    *::-webkit-scrollbar-track { background: #121512; }
+    *::-webkit-scrollbar-thumb {
+      border: 3px solid #121512;
+      border-radius: 8px;
+      background: #414b43;
+    }
+    *::-webkit-scrollbar-thumb:hover { background: var(--green); }
+
+    .summary-meta {
+      color: var(--muted);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+
+    @media (max-width: 650px) {
+      :root { --panel-width: 365px; }
+      .app { padding: 26px 12px 32px; }
+      .topbar { align-items: flex-start; }
+      .kicker { display: none; }
+      .primary-button { width: 40px; padding: 0; }
+      .primary-button .button-label { display: none; }
+      .people-grid { gap: 12px; padding: 12px; }
+      .sidebar-stack { width: 300px; min-width: 300px; margin-left: 12px; }
+      .summary-bar { grid-template-columns: 1fr; gap: 8px; }
+      .summary-meta { text-align: left; }
+    }
+
+    @media (max-width: 400px) {
+      :root { --panel-width: 338px; }
+      .brand-mark { display: none; }
+      th { padding-inline: 8px; font-size: 11px; }
+      .cell-input { padding-inline: 8px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+      .cursor-light { display: none; }
+      .gpu-cube { animation: none; }
+    }
+
+    @media (pointer: coarse) {
+      .cursor-light { display: none; }
+    }
+
+    @media (max-width: 900px) {
+      .visual-effects { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="cursor-light" id="cursorLight" aria-hidden="true"></div>
+  <div class="visual-effects" aria-hidden="true">
+    <div class="gpu-cube gpu-cube-one">
+      <span class="cube-front"></span>
+      <span class="cube-right"></span>
+      <span class="cube-top"></span>
+    </div>
+    <div class="gpu-cube gpu-cube-two">
+      <span class="cube-front"></span>
+      <span class="cube-right"></span>
+      <span class="cube-top"></span>
+    </div>
+  </div>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <img class="brand-mark" src="favicon.svg" alt="" width="38" height="38" aria-hidden="true">
+        <div>
+          <h1>Calculator EgoDex</h1>
+          <p class="kicker">Production timing worksheet</p>
+        </div>
+      </div>
+      <button class="primary-button" id="addPerson" type="button">
+        <span class="icon" aria-hidden="true">+</span>
+        <span class="button-label">Add person</span>
+      </button>
+    </header>
+
+    <section class="worksheet-shell" id="worksheet" aria-label="Video timing worksheet">
+      <div class="people-grid" id="peopleGrid"></div>
+    </section>
+
+    <aside class="summary-bar" aria-live="polite">
+      <div>
+        <span class="summary-label">Combined total</span>
+        <span class="summary-time" id="combinedTime">0 min 0 sec</span>
+      </div>
+      <div class="summary-meta" id="combinedMeta">0 seconds across 0 video rows</div>
+    </aside>
+  </main>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = "video-time-sheet-dark-v1";
+      const NOTES_STORAGE_KEY = "video-time-sheet-notes-v1";
+      const PRESET_STORAGE_KEY = "video-time-sheet-preset-v1";
+      const DEFAULT_PRESET = "Operator Name:\nTask:\nMinutes:\nGear:";
+      const grid = document.querySelector("#peopleGrid");
+      const worksheet = document.querySelector("#worksheet");
+      const addPersonButton = document.querySelector("#addPerson");
+      const combinedTime = document.querySelector("#combinedTime");
+      const combinedMeta = document.querySelector("#combinedMeta");
+      const cursorLight = document.querySelector("#cursorLight");
+
+      let people = load();
+      let notes = localStorage.getItem(NOTES_STORAGE_KEY) || "";
+      let preset = localStorage.getItem(PRESET_STORAGE_KEY) ?? DEFAULT_PRESET;
+
+      if (window.matchMedia("(pointer: fine)").matches && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        let pointerX = 0;
+        let pointerY = 0;
+        let pointerFrame = 0;
+
+        document.addEventListener("pointermove", (event) => {
+          pointerX = event.clientX;
+          pointerY = event.clientY;
+          cursorLight.style.opacity = "1";
+
+          if (pointerFrame) return;
+          pointerFrame = requestAnimationFrame(() => {
+            cursorLight.style.transform = `translate3d(${pointerX - 230}px, ${pointerY - 230}px, 0)`;
+            pointerFrame = 0;
+          });
+        }, { passive: true });
+
+        document.documentElement.addEventListener("mouseleave", () => {
+          cursorLight.style.opacity = "0";
+        });
+      }
+
+      function uid() {
+        return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      }
+
+      function newRow(videoNumber = 1) {
+        return { id: uid(), videoNumber, seconds: "", fileNumber: "" };
+      }
+
+      function newPerson(number) {
+        return { id: uid(), name: `Person ${number}`, rows: [newRow(1)] };
+      }
+
+      function load() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+          if (Array.isArray(saved)) return saved;
+        } catch (_) {}
+        return [newPerson(1)];
+      }
+
+      function save() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(people));
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function parseDuration(value) {
+        const input = String(value ?? "").trim();
+        if (!input) return 0;
+
+        if (!input.includes(":")) {
+          const seconds = Number(input);
+          return Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+        }
+
+        const parts = input.split(":").map((part) => part.trim());
+        if (parts.length < 2 || parts.length > 3 || parts.some((part) => part === "" || !Number.isFinite(Number(part)))) {
+          return 0;
+        }
+
+        if (parts.length === 2) {
+          const [minutes, seconds] = parts.map(Number);
+          return Math.max(0, (minutes * 60) + seconds);
+        }
+
+        const [hours, minutes, seconds] = parts.map(Number);
+        return Math.max(0, (hours * 3600) + (minutes * 60) + seconds);
+      }
+
+      function totalSeconds(person) {
+        return person.rows.reduce((sum, row) => sum + parseDuration(row.seconds), 0);
+      }
+
+      function friendlyTime(seconds) {
+        const whole = Math.max(0, Math.floor(seconds));
+        return `${Math.floor(whole / 60)} min ${whole % 60} sec`;
+      }
+
+      function clockTime(seconds) {
+        const whole = Math.max(0, Math.floor(seconds));
+        const minutes = Math.floor(whole / 60);
+        const remainingSeconds = String(whole % 60).padStart(2, "0");
+        return `${minutes}:${remainingSeconds}`;
+      }
+
+      function rowMarkup(person, row, rowIndex) {
+        const personName = escapeHtml(person.name || "person");
+        return `
+          <tr data-row-id="${row.id}">
+            <td><input class="cell-input" data-field="videoNumber" type="number" min="0" step="1" inputmode="numeric" value="${escapeHtml(row.videoNumber)}" aria-label="Video number ${rowIndex + 1} for ${personName}"></td>
+            <td><input class="cell-input seconds-input" data-field="seconds" type="text" inputmode="text" value="${escapeHtml(row.seconds)}" placeholder="0 or 0:00" aria-label="Seconds or minutes and seconds for row ${rowIndex + 1} of ${personName}"></td>
+            <td><input class="cell-input" data-field="fileNumber" type="text" value="${escapeHtml(row.fileNumber)}" placeholder="File no." maxlength="40" aria-label="File number for row ${rowIndex + 1} of ${personName}"></td>
+            <td class="row-delete-cell"><button class="delete-row" data-action="delete-row" type="button" title="Delete video row" aria-label="Delete video row ${rowIndex + 1} for ${personName}">&times;</button></td>
+          </tr>`;
+      }
+
+      function personMarkup(person, index) {
+        const seconds = totalSeconds(person);
+        return `
+          <article class="person-panel" data-person-id="${person.id}">
+            <div class="person-toolbar">
+              <input class="name-input" data-person-field="name" value="${escapeHtml(person.name)}" maxlength="60" aria-label="Name for person ${index + 1}">
+              <button class="icon-button" data-action="add-row" type="button" title="Add video row" aria-label="Add video row">+</button>
+              <button class="icon-button delete-person" data-action="delete-person" type="button" title="Remove person" aria-label="Remove ${escapeHtml(person.name)}">&times;</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <colgroup><col class="video-col"><col class="seconds-col"><col class="file-col"><col class="delete-col"></colgroup>
+                <thead><tr><th>No. of Videos</th><th>Minutes:Seconds</th><th>File Number</th><th class="action-heading" aria-label="Row actions"></th></tr></thead>
+                <tbody>${person.rows.map((row, rowIndex) => rowMarkup(person, row, rowIndex)).join("")}</tbody>
+              </table>
+            </div>
+            <footer class="panel-footer">
+              <div>
+                <span class="panel-footer-label">Total Time</span>
+                <span class="panel-footer-detail">${friendlyTime(seconds)}</span>
+              </div>
+              <div class="person-total">${clockTime(seconds)} <span>MIN:SEC</span></div>
+            </footer>
+          </article>`;
+      }
+
+      function notesMarkup() {
+        return `
+          <div class="sidebar-stack">
+            <aside class="notes-panel" aria-label="Notes">
+              <h2 class="notes-heading"><span class="notes-heading-icon" aria-hidden="true">#</span> Notes</h2>
+              <textarea class="notes-input" id="notesInput" placeholder="Write your notes here..." aria-label="Notes">${escapeHtml(notes)}</textarea>
+            </aside>
+            <section class="preset-panel" aria-labelledby="presetHeading">
+              <h2 class="preset-heading" id="presetHeading"><span class="preset-heading-icon" aria-hidden="true">&#128203;</span> Copy preset</h2>
+              <textarea class="preset-input" id="presetInput" aria-label="Copy preset">${escapeHtml(preset)}</textarea>
+              <div class="preset-actions">
+                <button class="copy-button" data-action="copy-preset" type="button">Copy to clipboard</button>
+                <span class="copy-status" id="copyStatus" role="status" aria-live="polite"></span>
+              </div>
+            </section>
+          </div>`;
+      }
+
+      function render() {
+        let content;
+        if (!people.length) {
+          content = `<div class="empty-state"><div><strong>No people in this sheet</strong>Add a person to begin.</div></div>`;
+        } else {
+          content = people.map(personMarkup).join("");
+        }
+        grid.innerHTML = content + notesMarkup();
+        updateCombinedTotal();
+      }
+
+      function updateCombinedTotal() {
+        const seconds = people.reduce((sum, person) => sum + totalSeconds(person), 0);
+        const rows = people.reduce((sum, person) => sum + person.rows.length, 0);
+        combinedTime.textContent = friendlyTime(seconds);
+        combinedMeta.textContent = `${seconds} ${seconds === 1 ? "second" : "seconds"} across ${rows} video ${rows === 1 ? "row" : "rows"}`;
+      }
+
+      function findPerson(element) {
+        const id = element.closest("[data-person-id]")?.dataset.personId;
+        return people.find((person) => person.id === id);
+      }
+
+      function findRow(person, element) {
+        const id = element.closest("[data-row-id]")?.dataset.rowId;
+        return person?.rows.find((row) => row.id === id);
+      }
+
+      function nextVideoNumber(person) {
+        return person.rows.length + 1;
+      }
+
+      function renumberVideoRows(person) {
+        person.rows.forEach((row, index) => {
+          row.videoNumber = index + 1;
+        });
+      }
+
+      async function copyPreset() {
+        const input = grid.querySelector("#presetInput");
+        const status = grid.querySelector("#copyStatus");
+        if (!input || !status) return;
+
+        try {
+          if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
+          await navigator.clipboard.writeText(input.value);
+          status.textContent = "Copied!";
+        } catch (_) {
+          input.focus();
+          input.select();
+          status.textContent = document.execCommand("copy") ? "Copied!" : "Copy failed";
+        }
+
+        window.setTimeout(() => {
+          if (status.isConnected) status.textContent = "";
+        }, 1800);
+      }
+
+      grid.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-action]");
+        if (!button) return;
+
+        if (button.dataset.action === "copy-preset") {
+          copyPreset();
+          return;
+        }
+
+        const person = findPerson(button);
+        if (!person) return;
+
+        if (button.dataset.action === "delete-row") {
+          const row = findRow(person, button);
+          if (!row) return;
+          person.rows = person.rows.filter((item) => item.id !== row.id);
+          renumberVideoRows(person);
+          save();
+          render();
+          return;
+        }
+
+        if (button.dataset.action === "add-row") {
+          const row = newRow(nextVideoNumber(person));
+          person.rows.push(row);
+          save();
+          render();
+          requestAnimationFrame(() => {
+            const panel = grid.querySelector(`[data-person-id="${person.id}"]`);
+            panel?.querySelector(`[data-row-id="${row.id}"] [data-field="seconds"]`)?.focus();
+            const scroller = panel?.querySelector(".table-wrap");
+            if (scroller) scroller.scrollTop = scroller.scrollHeight;
+          });
+        }
+
+        if (button.dataset.action === "delete-person") {
+          people = people.filter((item) => item.id !== person.id);
+          save();
+          render();
+        }
+      });
+
+      grid.addEventListener("input", (event) => {
+        if (event.target.id === "notesInput") {
+          notes = event.target.value;
+          localStorage.setItem(NOTES_STORAGE_KEY, notes);
+          return;
+        }
+
+        if (event.target.id === "presetInput") {
+          preset = event.target.value;
+          localStorage.setItem(PRESET_STORAGE_KEY, preset);
+          return;
+        }
+
+        const person = findPerson(event.target);
+        if (!person) return;
+
+        if (event.target.dataset.personField === "name") {
+          person.name = event.target.value;
+          save();
+          return;
+        }
+
+        const field = event.target.dataset.field;
+        const row = findRow(person, event.target);
+        if (!field || !row) return;
+        row[field] = event.target.value;
+        save();
+
+        if (field === "seconds") {
+          const seconds = totalSeconds(person);
+          const panel = event.target.closest(".person-panel");
+          panel.querySelector(".panel-footer-detail").textContent = friendlyTime(seconds);
+          panel.querySelector(".person-total").innerHTML = `${clockTime(seconds)} <span>MIN:SEC</span>`;
+          updateCombinedTotal();
+        }
+      });
+
+      grid.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" || event.target.dataset.field !== "seconds") return;
+        event.preventDefault();
+        const person = findPerson(event.target);
+        if (!person) return;
+        const currentRow = findRow(person, event.target);
+        const currentIndex = person.rows.indexOf(currentRow);
+        const nextRow = person.rows[currentIndex + 1];
+        if (nextRow) {
+          grid.querySelector(`[data-row-id="${nextRow.id}"] [data-field="seconds"]`)?.focus();
+        } else {
+          event.target.closest(".person-panel").querySelector('[data-action="add-row"]')?.click();
+        }
+      });
+
+      addPersonButton.addEventListener("click", () => {
+        const person = newPerson(people.length + 1);
+        people.push(person);
+        save();
+        render();
+        requestAnimationFrame(() => {
+          worksheet.scrollTo({ left: worksheet.scrollWidth, behavior: "smooth" });
+          grid.querySelector(`[data-person-id="${person.id}"] .name-input`)?.select();
+        });
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>
