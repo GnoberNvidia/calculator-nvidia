@@ -477,6 +477,94 @@
 
     .person-total span { color: var(--green-bright); font-size: 11px; font-weight: 800; }
 
+    .target-slot {
+      grid-column: 1 / -1;
+      min-width: 0;
+    }
+
+    .target-status {
+      width: 100%;
+      display: block;
+      padding: 9px 10px 8px;
+      border: 1px solid #3d493f;
+      border-radius: 4px;
+      background: rgba(7, 10, 8, 0.42);
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 140ms ease, background 140ms ease;
+    }
+
+    .target-status:hover {
+      border-color: rgba(155, 224, 0, 0.52);
+      background: rgba(118, 185, 0, 0.06);
+    }
+
+    .target-status:focus-visible {
+      outline: 2px solid var(--green-bright);
+      outline-offset: 2px;
+    }
+
+    .target-copy {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 7px;
+    }
+
+    .target-label {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.045em;
+    }
+
+    .target-remaining {
+      color: var(--green-bright);
+      font-size: 11px;
+      font-weight: 850;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+
+    .target-track {
+      height: 4px;
+      overflow: hidden;
+      border-radius: 2px;
+      background: #0a0d0b;
+      box-shadow: inset 0 0 0 1px #303832;
+    }
+
+    .target-track span {
+      display: block;
+      width: var(--target-progress, 0%);
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--green-deep), var(--green-bright));
+      box-shadow: 0 0 10px rgba(118, 185, 0, 0.34);
+    }
+
+    .target-status.is-complete {
+      border-color: rgba(118, 185, 0, 0.62);
+      background: rgba(118, 185, 0, 0.075);
+    }
+
+    .target-status.is-complete .target-remaining { color: #d9ff91; }
+    .target-status.is-complete .target-track span { background: var(--green-bright); }
+
+    .target-status.is-over {
+      border-color: rgba(255, 98, 89, 0.42);
+      background: rgba(255, 98, 89, 0.035);
+    }
+
+    .target-status.is-over .target-remaining { color: #ff8d86; }
+    .target-status.is-over .target-track span { background: linear-gradient(90deg, var(--green), #ff8d86); }
+
+    .target-status.is-unset .target-copy { margin: 0; }
+    .target-status.is-unset .target-remaining { color: var(--green-bright); }
+
     .sidebar-stack {
       position: relative;
       width: 320px;
@@ -712,6 +800,78 @@
       border: 0;
     }
 
+    .celebration-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .confetti-piece {
+      position: fixed;
+      width: var(--size, 8px);
+      height: calc(var(--size, 8px) * 0.52);
+      border-radius: 1px;
+      background: var(--confetti-color, var(--green));
+      box-shadow: 0 0 8px color-mix(in srgb, var(--confetti-color) 45%, transparent);
+      opacity: 0;
+      will-change: transform, opacity;
+      animation: confetti-burst var(--duration, 1500ms) cubic-bezier(0.16, 0.72, 0.28, 1) var(--delay, 0ms) forwards;
+    }
+
+    @keyframes confetti-burst {
+      0% {
+        opacity: 0;
+        transform: translate3d(0, 0, 0) rotate(0deg) scale(0.5);
+      }
+      10% { opacity: 1; }
+      100% {
+        opacity: 0;
+        transform: translate3d(var(--travel-x), var(--travel-y), 0) rotate(var(--spin)) scale(1);
+      }
+    }
+
+    .celebration-toast {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      z-index: 41;
+      min-width: min(360px, calc(100vw - 32px));
+      padding: 13px 18px;
+      border: 1px solid var(--green-bright);
+      border-radius: 5px;
+      background:
+        linear-gradient(110deg, rgba(118, 185, 0, 0.18), transparent 55%),
+        rgba(13, 17, 14, 0.96);
+      color: var(--text);
+      text-align: center;
+      box-shadow: 0 18px 54px rgba(0, 0, 0, 0.46), 0 0 28px rgba(118, 185, 0, 0.18);
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -18px) scale(0.96);
+      transition: opacity 180ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .celebration-toast.is-visible {
+      opacity: 1;
+      transform: translate(-50%, 0) scale(1);
+    }
+
+    .celebration-toast strong {
+      display: block;
+      color: var(--green-bright);
+      font-size: 17px;
+      letter-spacing: -0.01em;
+    }
+
+    .celebration-toast span {
+      display: block;
+      margin-top: 3px;
+      color: #d6ddd7;
+      font-size: 12px;
+    }
+
     @media (max-width: 650px) {
       :root { --panel-width: 365px; }
       .app { padding: 26px 12px 32px; }
@@ -736,6 +896,7 @@
       *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
       .cursor-light { display: none; }
       .gpu-cube { animation: none; }
+      .confetti-piece { display: none; }
     }
 
     @media (pointer: coarse) {
@@ -750,6 +911,11 @@
 <body>
   <div class="cursor-light" id="cursorLight" aria-hidden="true"></div>
   <div class="sr-only" id="historyStatus" role="status" aria-live="polite"></div>
+  <div class="celebration-layer" id="celebrationLayer" aria-hidden="true"></div>
+  <div class="celebration-toast" id="celebrationToast" role="status" aria-live="assertive">
+    <strong>Nice job!</strong>
+    <span id="celebrationMessage">Quota for the day met.</span>
+  </div>
   <div class="visual-effects" aria-hidden="true">
     <div class="gpu-cube gpu-cube-one">
       <span class="cube-front"></span>
@@ -795,6 +961,7 @@
       const STORAGE_KEY = "video-time-sheet-dark-v1";
       const NOTES_STORAGE_KEY = "video-time-sheet-notes-v1";
       const PRESET_STORAGE_KEY = "video-time-sheet-preset-v1";
+      const TARGET_STORAGE_KEY = "video-time-sheet-daily-target-v1";
       const DEFAULT_PRESET = "Operator Name:\nTask:\nMinutes:\nGear:";
       const grid = document.querySelector("#peopleGrid");
       const worksheet = document.querySelector("#worksheet");
@@ -803,15 +970,22 @@
       const combinedMeta = document.querySelector("#combinedMeta");
       const cursorLight = document.querySelector("#cursorLight");
       const historyStatus = document.querySelector("#historyStatus");
+      const celebrationLayer = document.querySelector("#celebrationLayer");
+      const celebrationToast = document.querySelector("#celebrationToast");
+      const celebrationMessage = document.querySelector("#celebrationMessage");
 
       let people = load();
       let notes = localStorage.getItem(NOTES_STORAGE_KEY) || "";
       const savedPreset = localStorage.getItem(PRESET_STORAGE_KEY);
       let preset = savedPreset?.trim() ? savedPreset : DEFAULT_PRESET;
+      let targetSeconds = loadTarget();
       const undoStack = [];
       const redoStack = [];
       const HISTORY_LIMIT = 100;
       let editStartSnapshot = null;
+      let audioContext = null;
+      let celebrationTimer = 0;
+      const knownPersonTotals = new Map();
 
       if (window.matchMedia("(pointer: fine)").matches && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         let pointerX = 0;
@@ -918,6 +1092,117 @@
         return true;
       }
 
+      function getAudioContext() {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return null;
+        if (!audioContext) audioContext = new AudioContextClass();
+        if (audioContext.state === "suspended") audioContext.resume().catch(() => {});
+        return audioContext;
+      }
+
+      function playTone(startFrequency, endFrequency, duration, delay = 0, volume = 0.025, type = "sine") {
+        try {
+          const context = getAudioContext();
+          if (!context) return;
+
+          const start = context.currentTime + delay;
+          const oscillator = context.createOscillator();
+          const gain = context.createGain();
+          oscillator.type = type;
+          oscillator.frequency.setValueAtTime(startFrequency, start);
+          oscillator.frequency.exponentialRampToValueAtTime(endFrequency, start + duration);
+          gain.gain.setValueAtTime(0.0001, start);
+          gain.gain.exponentialRampToValueAtTime(volume, start + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+          oscillator.connect(gain);
+          gain.connect(context.destination);
+          oscillator.start(start);
+          oscillator.stop(start + duration + 0.02);
+        } catch (_) {}
+      }
+
+      function playButtonSound(action) {
+        if (action === "add-row" || action === "addPerson") {
+          playTone(430, 540, 0.075, 0, 0.022, "triangle");
+          playTone(610, 760, 0.09, 0.055, 0.018, "triangle");
+          return;
+        }
+
+        if (action === "delete-row" || action === "delete-person") {
+          playTone(250, 145, 0.11, 0, 0.018, "triangle");
+          return;
+        }
+
+        if (action === "copy-preset") {
+          playTone(620, 780, 0.075, 0, 0.02, "sine");
+          playTone(820, 980, 0.09, 0.065, 0.016, "sine");
+          return;
+        }
+
+        if (action === "change-target") {
+          playTone(330, 470, 0.105, 0, 0.02, "triangle");
+          return;
+        }
+
+        playTone(360, 440, 0.065, 0, 0.018, "sine");
+      }
+
+      function playCompletionSound() {
+        [
+          [523.25, 0],
+          [659.25, 0.09],
+          [783.99, 0.18],
+          [1046.5, 0.29]
+        ].forEach(([frequency, delay], index) => {
+          playTone(frequency, frequency * 1.015, index === 3 ? 0.32 : 0.2, delay, 0.035, "triangle");
+        });
+      }
+
+      function launchConfetti(panel) {
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+        const source = panel?.querySelector(".target-status")?.getBoundingClientRect();
+        const originX = source ? source.left + (source.width / 2) : window.innerWidth / 2;
+        const originY = source ? source.top + 8 : window.innerHeight * 0.28;
+        const colors = ["#76b900", "#9be000", "#d9ff91", "#f4f6f4", "#4f7c00"];
+        const fragment = document.createDocumentFragment();
+        celebrationLayer.replaceChildren();
+
+        for (let index = 0; index < 64; index += 1) {
+          const piece = document.createElement("i");
+          const angle = (Math.random() * Math.PI) + Math.PI;
+          const distance = 130 + (Math.random() * 310);
+          const travelX = Math.cos(angle) * distance;
+          const travelY = 190 + (Math.random() * Math.max(220, window.innerHeight * 0.48));
+          piece.className = "confetti-piece";
+          piece.style.left = `${originX}px`;
+          piece.style.top = `${originY}px`;
+          piece.style.setProperty("--travel-x", `${travelX}px`);
+          piece.style.setProperty("--travel-y", `${travelY}px`);
+          piece.style.setProperty("--spin", `${Math.round((Math.random() - 0.5) * 1100)}deg`);
+          piece.style.setProperty("--delay", `${Math.round(Math.random() * 170)}ms`);
+          piece.style.setProperty("--duration", `${1250 + Math.round(Math.random() * 650)}ms`);
+          piece.style.setProperty("--size", `${5 + Math.round(Math.random() * 7)}px`);
+          piece.style.setProperty("--confetti-color", colors[index % colors.length]);
+          fragment.appendChild(piece);
+        }
+
+        celebrationLayer.appendChild(fragment);
+        window.setTimeout(() => celebrationLayer.replaceChildren(), 2200);
+      }
+
+      function celebrateTarget(person, panel) {
+        const personName = person.name.trim() || "This person";
+        celebrationMessage.textContent = `Quota for the day met — ${personName}.`;
+        celebrationToast.classList.add("is-visible");
+        window.clearTimeout(celebrationTimer);
+        celebrationTimer = window.setTimeout(() => {
+          celebrationToast.classList.remove("is-visible");
+        }, 3600);
+        launchConfetti(panel);
+        playCompletionSound();
+      }
+
       function escapeHtml(value) {
         return String(value ?? "")
           .replaceAll("&", "&amp;")
@@ -966,6 +1251,76 @@
         return `${minutes}:${remainingSeconds}`;
       }
 
+      function todayKey() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, "0");
+        const day = String(today.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+
+      function loadTarget() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(TARGET_STORAGE_KEY));
+          if (saved?.date === todayKey() && Number.isFinite(saved.seconds) && saved.seconds > 0) {
+            return saved.seconds;
+          }
+        } catch (_) {}
+        return null;
+      }
+
+      function promptForTarget() {
+        const currentMinutes = targetSeconds ? String(targetSeconds / 60) : "";
+        let answer = window.prompt("What's your target time for today? (Enter number of minutes)", currentMinutes);
+
+        while (answer !== null) {
+          const minutes = Number(answer.trim());
+          if (Number.isFinite(minutes) && minutes > 0) {
+            targetSeconds = Math.max(1, Math.round(minutes * 60));
+            localStorage.setItem(TARGET_STORAGE_KEY, JSON.stringify({
+              date: todayKey(),
+              seconds: targetSeconds
+            }));
+            render();
+            return;
+          }
+          window.alert("Enter a number of minutes greater than 0.");
+          answer = window.prompt("What's your target time for today? (Enter number of minutes)", currentMinutes);
+        }
+      }
+
+      function targetMarkup(seconds) {
+        if (!targetSeconds) {
+          return `
+            <button class="target-status is-unset" data-action="change-target" type="button">
+              <span class="target-copy">
+                <span class="target-label">Daily target</span>
+                <strong class="target-remaining">Set target</strong>
+              </span>
+            </button>`;
+        }
+
+        const difference = targetSeconds - seconds;
+        const progress = Math.min(100, Math.max(0, (seconds / targetSeconds) * 100));
+        const stateClass = difference < 0 ? "is-over" : difference === 0 ? "is-complete" : "";
+        const result = difference < 0
+          ? `${friendlyTime(Math.abs(difference))} over target`
+          : difference === 0
+            ? "Target reached"
+            : `${friendlyTime(difference)} remaining`;
+
+        return `
+          <button class="target-status ${stateClass}" data-action="change-target" type="button"
+            style="--target-progress: ${progress}%"
+            aria-label="${escapeHtml(result)}. Change today's target.">
+            <span class="target-copy">
+              <span class="target-label">Daily target &middot; ${friendlyTime(targetSeconds)}</span>
+              <strong class="target-remaining">${result}</strong>
+            </span>
+            <span class="target-track" aria-hidden="true"><span></span></span>
+          </button>`;
+      }
+
       function rowMarkup(person, row, rowIndex) {
         const personName = escapeHtml(person.name || "person");
         return `
@@ -999,6 +1354,7 @@
                 <span class="panel-footer-detail">${friendlyTime(seconds)}</span>
               </div>
               <div class="person-total">${clockTime(seconds)} <span>MIN:SEC</span></div>
+              <div class="target-slot">${targetMarkup(seconds)}</div>
             </footer>
           </article>`;
       }
@@ -1026,7 +1382,51 @@
           </div>`;
       }
 
+      function captureScrollState() {
+        const panelScroll = new Map();
+        grid.querySelectorAll(".person-panel").forEach((panel) => {
+          const personId = panel.dataset.personId;
+          const scroller = panel.querySelector(".table-wrap");
+          if (personId && scroller) panelScroll.set(personId, scroller.scrollTop);
+        });
+
+        return {
+          worksheetLeft: worksheet.scrollLeft,
+          panelScroll,
+          notesTop: grid.querySelector("#notesInput")?.scrollTop ?? 0,
+          presetTop: grid.querySelector("#presetInput")?.scrollTop ?? 0
+        };
+      }
+
+      function restoreScrollState(scrollState) {
+        worksheet.scrollLeft = scrollState.worksheetLeft;
+
+        scrollState.panelScroll.forEach((scrollTop, personId) => {
+          const panel = grid.querySelector(`[data-person-id="${personId}"]`);
+          const scroller = panel?.querySelector(".table-wrap");
+          if (scroller) scroller.scrollTop = scrollTop;
+        });
+
+        const notesInput = grid.querySelector("#notesInput");
+        const presetInput = grid.querySelector("#presetInput");
+        if (notesInput) notesInput.scrollTop = scrollState.notesTop;
+        if (presetInput) presetInput.scrollTop = scrollState.presetTop;
+      }
+
+      function syncKnownPersonTotals() {
+        const activePersonIds = new Set();
+        people.forEach((person) => {
+          activePersonIds.add(person.id);
+          knownPersonTotals.set(person.id, totalSeconds(person));
+        });
+
+        knownPersonTotals.forEach((_, personId) => {
+          if (!activePersonIds.has(personId)) knownPersonTotals.delete(personId);
+        });
+      }
+
       function render() {
+        const scrollState = captureScrollState();
         let content;
         if (!people.length) {
           content = `<div class="empty-state"><div><strong>No people in this sheet</strong>Add a person to begin.</div></div>`;
@@ -1035,6 +1435,8 @@
         }
         grid.innerHTML = content + notesMarkup();
         updateCombinedTotal();
+        restoreScrollState(scrollState);
+        syncKnownPersonTotals();
       }
 
       function updateCombinedTotal() {
@@ -1090,6 +1492,11 @@
 
         if (button.dataset.action === "copy-preset") {
           copyPreset();
+          return;
+        }
+
+        if (button.dataset.action === "change-target") {
+          promptForTarget();
           return;
         }
 
@@ -1163,10 +1570,17 @@
 
         if (field === "seconds") {
           const seconds = totalSeconds(person);
+          const previousSeconds = knownPersonTotals.get(person.id) ?? seconds;
+          knownPersonTotals.set(person.id, seconds);
           const panel = event.target.closest(".person-panel");
           panel.querySelector(".panel-footer-detail").textContent = friendlyTime(seconds);
           panel.querySelector(".person-total").innerHTML = `${clockTime(seconds)} <span>MIN:SEC</span>`;
+          panel.querySelector(".target-slot").innerHTML = targetMarkup(seconds);
           updateCombinedTotal();
+
+          if (targetSeconds && previousSeconds < targetSeconds && seconds >= targetSeconds) {
+            celebrateTarget(person, panel);
+          }
         }
       });
 
@@ -1216,6 +1630,12 @@
         });
       });
 
+      document.addEventListener("click", (event) => {
+        const button = event.target.closest("button");
+        if (!button || button.disabled) return;
+        playButtonSound(button.dataset.action || button.id);
+      });
+
       document.addEventListener("keydown", (event) => {
         if ((!event.ctrlKey && !event.metaKey) || event.altKey) return;
         if (event.target.matches("input, textarea, [contenteditable='true']")) return;
@@ -1230,6 +1650,9 @@
       });
 
       render();
+      if (!targetSeconds) {
+        window.setTimeout(promptForTarget, 0);
+      }
     })();
   </script>
 </body>
