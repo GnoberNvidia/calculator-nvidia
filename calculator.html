@@ -444,8 +444,19 @@
 
     .cell-input[type="number"] { text-align: right; }
     .seconds-input { text-align: right; }
+    .seconds-input.is-invalid,
+    .seconds-input:invalid {
+      color: #ffaaa5;
+      background: rgba(255, 98, 89, 0.07);
+      box-shadow: inset 0 0 0 2px rgba(255, 98, 89, 0.72);
+    }
     .cell-input:hover { background: rgba(255, 255, 255, 0.025); }
     .cell-input:focus { background: #20261f; box-shadow: inset 0 0 0 2px var(--green-bright), 0 0 12px rgba(118, 185, 0, 0.08); }
+    .seconds-input.is-invalid:focus,
+    .seconds-input:invalid:focus {
+      background: rgba(255, 98, 89, 0.09);
+      box-shadow: inset 0 0 0 2px var(--danger), 0 0 12px rgba(255, 98, 89, 0.12);
+    }
     .cell-input::placeholder { color: #59625c; }
 
     .row-delete-cell { text-align: center; }
@@ -523,16 +534,62 @@
       background: rgba(7, 10, 8, 0.42);
       color: inherit;
       text-align: left;
+    }
+
+    .target-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .target-field {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .target-input-label {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.045em;
+      text-transform: uppercase;
+    }
+
+    .target-input {
+      width: 100%;
+      height: 34px;
+      padding: 0 9px;
+      border: 1px solid #465048;
+      border-radius: 3px;
+      outline: 0;
+      background: #121613;
+      color: var(--text);
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .target-input:focus {
+      border-color: var(--green-bright);
+      box-shadow: 0 0 0 2px rgba(118, 185, 0, 0.12);
+    }
+
+    .target-save {
+      height: 34px;
+      padding: 0 11px;
+      border: 1px solid var(--green);
+      border-radius: 3px;
+      background: var(--green-soft);
+      color: var(--green-bright);
+      font-size: 11px;
+      font-weight: 800;
       cursor: pointer;
-      transition: border-color 140ms ease, background 140ms ease;
     }
 
-    .target-status:hover {
-      border-color: rgba(155, 224, 0, 0.52);
-      background: rgba(118, 185, 0, 0.06);
-    }
-
-    .target-status:focus-visible {
+    .target-save:hover { background: rgba(118, 185, 0, 0.2); }
+    .target-save:focus-visible {
       outline: 2px solid var(--green-bright);
       outline-offset: 2px;
     }
@@ -593,9 +650,6 @@
 
     .target-status.is-over .target-remaining { color: #ff8d86; }
     .target-status.is-over .target-track span { background: linear-gradient(90deg, var(--green), #ff8d86); }
-
-    .target-status.is-unset .target-copy { margin: 0; }
-    .target-status.is-unset .target-remaining { color: var(--green-bright); }
 
     .sidebar-stack {
       position: relative;
@@ -1196,11 +1250,6 @@
           return;
         }
 
-        if (action === "change-target") {
-          playTone(330, 470, 0.105, 0, 0.02, "triangle");
-          return;
-        }
-
         playTone(360, 440, 0.065, 0, 0.018, "sine");
       }
 
@@ -1269,27 +1318,59 @@
           .replaceAll("'", "&#039;");
       }
 
-      function parseDuration(value) {
+      function durationError(value) {
         const input = String(value ?? "").trim();
-        if (!input) return 0;
+        if (!input) return "";
 
         if (!input.includes(":")) {
           const seconds = Number(input);
-          return Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+          return Number.isFinite(seconds) && seconds >= 0
+            ? ""
+            : "Enter a non-negative number of seconds, M:SS, or H:MM:SS.";
         }
 
         const parts = input.split(":").map((part) => part.trim());
-        if (parts.length < 2 || parts.length > 3 || parts.some((part) => part === "" || !Number.isFinite(Number(part)))) {
-          return 0;
+        if (parts.length < 2 || parts.length > 3 || parts.some((part) => part === "" || !Number.isFinite(Number(part)) || Number(part) < 0)) {
+          return "Use M:SS or H:MM:SS with non-negative numbers.";
         }
 
+        const numbers = parts.map(Number);
         if (parts.length === 2) {
-          const [minutes, seconds] = parts.map(Number);
-          return Math.max(0, (minutes * 60) + seconds);
+          const [minutes, seconds] = numbers;
+          if (!Number.isInteger(minutes) || seconds >= 60) {
+            return "Use M:SS; minutes must be whole and seconds must be below 60.";
+          }
+          return "";
         }
 
-        const [hours, minutes, seconds] = parts.map(Number);
-        return Math.max(0, (hours * 3600) + (minutes * 60) + seconds);
+        const [hours, minutes, seconds] = numbers;
+        if (!Number.isInteger(hours) || !Number.isInteger(minutes) || minutes >= 60 || seconds >= 60) {
+          return "Use H:MM:SS; hours and minutes must be whole, and minutes and seconds must be below 60.";
+        }
+        return "";
+      }
+
+      function parseDuration(value) {
+        const input = String(value ?? "").trim();
+        if (!input || durationError(input)) return 0;
+        if (!input.includes(":")) return Number(input);
+
+        const parts = input.split(":").map(Number);
+        if (parts.length === 2) return (parts[0] * 60) + parts[1];
+        return (parts[0] * 3600) + (parts[1] * 60) + parts[2];
+      }
+
+      function applyDurationValidity(input) {
+        const message = durationError(input.value);
+        input.setCustomValidity(message);
+        input.classList.toggle("is-invalid", Boolean(message));
+        input.setAttribute("aria-invalid", String(Boolean(message)));
+        if (message) {
+          input.title = message;
+        } else {
+          input.removeAttribute("title");
+        }
+        return !message;
       }
 
       function totalSeconds(person) {
@@ -1326,36 +1407,37 @@
         return null;
       }
 
-      function promptForTarget() {
-        const currentMinutes = targetSeconds ? String(targetSeconds / 60) : "";
-        let answer = window.prompt("What's your target time for today? (Enter number of minutes)", currentMinutes);
-
-        while (answer !== null) {
-          const minutes = Number(answer.trim());
-          if (Number.isFinite(minutes) && minutes > 0) {
-            targetSeconds = Math.max(1, Math.round(minutes * 60));
-            localStorage.setItem(TARGET_STORAGE_KEY, JSON.stringify({
-              date: todayKey(),
-              seconds: targetSeconds
-            }));
-            render();
-            return;
-          }
-          window.alert("Enter a number of minutes greater than 0.");
-          answer = window.prompt("What's your target time for today? (Enter number of minutes)", currentMinutes);
+      function setTarget(form) {
+        const input = form.querySelector(".target-input");
+        const minutes = Number(input?.value);
+        if (!input || !Number.isFinite(minutes) || minutes <= 0) {
+          input?.setCustomValidity("Enter a number of minutes greater than 0.");
+          input?.reportValidity();
+          return;
         }
+
+        input.setCustomValidity("");
+        targetSeconds = Math.max(1, Math.round(minutes * 60));
+        localStorage.setItem(TARGET_STORAGE_KEY, JSON.stringify({
+          date: todayKey(),
+          seconds: targetSeconds
+        }));
+        render();
       }
 
       function targetMarkup(seconds) {
-        if (!targetSeconds) {
-          return `
-            <button class="target-status is-unset" data-action="change-target" type="button">
-              <span class="target-copy">
-                <span class="target-label">Daily target</span>
-                <strong class="target-remaining">Set target</strong>
-              </span>
-            </button>`;
-        }
+        const currentMinutes = targetSeconds ? Number((targetSeconds / 60).toFixed(2)) : "";
+        const editor = `
+          <form class="target-form">
+            <label class="target-field">
+              <span class="target-input-label">Daily target (minutes)</span>
+              <input class="target-input" type="number" min="0.01" step="0.01" inputmode="decimal"
+                value="${currentMinutes}" placeholder="e.g. 60" required aria-label="Daily target in minutes">
+            </label>
+            <button class="target-save" type="submit">${targetSeconds ? "Update" : "Set target"}</button>
+          </form>`;
+
+        if (!targetSeconds) return editor;
 
         const difference = targetSeconds - seconds;
         const progress = Math.min(100, Math.max(0, (seconds / targetSeconds) * 100));
@@ -1366,16 +1448,14 @@
             ? "Target reached"
             : `${friendlyTime(difference)} remaining`;
 
-        return `
-          <button class="target-status ${stateClass}" data-action="change-target" type="button"
-            style="--target-progress: ${progress}%"
-            aria-label="${escapeHtml(result)}. Change today's target.">
+        return `${editor}
+          <div class="target-status ${stateClass}" style="--target-progress: ${progress}%">
             <span class="target-copy">
               <span class="target-label">Daily target &middot; ${friendlyTime(targetSeconds)}</span>
               <strong class="target-remaining">${result}</strong>
             </span>
             <span class="target-track" aria-hidden="true"><span></span></span>
-          </button>`;
+          </div>`;
       }
 
       const VIDEO_EXTENSIONS = new Set([
@@ -1638,6 +1718,7 @@
           content = people.map(personMarkup).join("");
         }
         grid.innerHTML = content + notesMarkup();
+        grid.querySelectorAll(".seconds-input").forEach(applyDurationValidity);
         updateCombinedTotal();
         restoreScrollState(scrollState);
         syncKnownPersonTotals();
@@ -1699,11 +1780,6 @@
           return;
         }
 
-        if (button.dataset.action === "change-target") {
-          promptForTarget();
-          return;
-        }
-
         const person = findPerson(button);
         if (!person) return;
 
@@ -1754,7 +1830,18 @@
         if (personId && files.length) importFolder(personId, files);
       });
 
+      grid.addEventListener("submit", (event) => {
+        if (!event.target.matches(".target-form")) return;
+        event.preventDefault();
+        setTarget(event.target);
+      });
+
       grid.addEventListener("input", (event) => {
+        if (event.target.matches(".target-input")) {
+          event.target.setCustomValidity("");
+          return;
+        }
+
         if (event.target.id === "notesInput") {
           notes = event.target.value;
           localStorage.setItem(NOTES_STORAGE_KEY, notes);
@@ -1787,6 +1874,7 @@
         save();
 
         if (field === "seconds") {
+          applyDurationValidity(event.target);
           const seconds = totalSeconds(person);
           const previousSeconds = knownPersonTotals.get(person.id) ?? seconds;
           knownPersonTotals.set(person.id, seconds);
@@ -1809,6 +1897,10 @@
       });
 
       grid.addEventListener("change", (event) => {
+        if (event.target.matches(".seconds-input") && !applyDurationValidity(event.target)) {
+          historyStatus.textContent = event.target.validationMessage;
+          event.target.reportValidity();
+        }
         if (!event.target.matches("input, textarea") || !editStartSnapshot) return;
         if (editStartSnapshot !== stateSnapshot()) {
           pushUndoSnapshot(editStartSnapshot);
@@ -1868,9 +1960,6 @@
       });
 
       render();
-      if (!targetSeconds) {
-        window.setTimeout(promptForTarget, 0);
-      }
     })();
   </script>
 </body>
