@@ -300,7 +300,7 @@
     .person-toolbar {
       height: 48px;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 44px 44px;
+      grid-template-columns: minmax(0, 1fr) 44px 44px 44px;
       align-items: stretch;
       background:
         linear-gradient(90deg, rgba(118, 185, 0, 0.07), transparent 42%),
@@ -342,6 +342,38 @@
     .icon-button:hover { background: var(--green); color: #080a08; }
     .icon-button:focus-visible { outline: 2px solid var(--green-bright); outline-offset: -3px; }
     .delete-person:hover { background: rgba(255, 98, 89, 0.14); color: var(--danger); }
+
+    .import-folder.is-loading {
+      color: var(--green-bright);
+      cursor: progress;
+      animation: import-pulse 850ms ease-in-out infinite alternate;
+    }
+
+    @keyframes import-pulse {
+      to { background: rgba(118, 185, 0, 0.16); }
+    }
+
+    .import-status {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 42;
+      max-width: min(430px, calc(100vw - 40px));
+      padding: 11px 14px;
+      border: 1px solid #516052;
+      border-radius: 4px;
+      background: rgba(17, 21, 18, 0.97);
+      color: #dce3dd;
+      font-size: 12px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.42);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .import-status.is-visible { opacity: 1; transform: translateY(0); }
+    .import-status.is-error { border-color: rgba(255, 98, 89, 0.65); color: #ffaaa5; }
 
     .table-wrap {
       flex: 1;
@@ -645,6 +677,24 @@
       line-height: 1.4;
     }
 
+    .folder-instruction {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 10px 14px;
+      border-bottom: 1px solid #29312b;
+      background: rgba(118, 185, 0, 0.07);
+      color: #cbd4cd;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .folder-instruction-icon {
+      color: var(--green-bright);
+      font-size: 17px;
+      line-height: 1;
+    }
+
     .notes-shortcuts kbd {
       padding: 2px 5px;
       border: 1px solid #4b574e;
@@ -916,6 +966,8 @@
     <strong>Nice job!</strong>
     <span id="celebrationMessage">Quota for the day met.</span>
   </div>
+  <input id="folderInput" type="file" accept="video/*" webkitdirectory directory multiple hidden>
+  <div class="import-status" id="importStatus" role="status" aria-live="polite"></div>
   <div class="visual-effects" aria-hidden="true">
     <div class="gpu-cube gpu-cube-one">
       <span class="cube-front"></span>
@@ -973,6 +1025,8 @@
       const celebrationLayer = document.querySelector("#celebrationLayer");
       const celebrationToast = document.querySelector("#celebrationToast");
       const celebrationMessage = document.querySelector("#celebrationMessage");
+      const folderInput = document.querySelector("#folderInput");
+      const importStatus = document.querySelector("#importStatus");
 
       let people = load();
       let notes = localStorage.getItem(NOTES_STORAGE_KEY) || "";
@@ -985,6 +1039,9 @@
       let editStartSnapshot = null;
       let audioContext = null;
       let celebrationTimer = 0;
+      let importStatusTimer = 0;
+      let importPersonId = null;
+      const importingPeople = new Set();
       const knownPersonTotals = new Map();
 
       if (window.matchMedia("(pointer: fine)").matches && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -1321,6 +1378,147 @@
           </button>`;
       }
 
+      const VIDEO_EXTENSIONS = new Set([
+        "3g2", "3gp", "avi", "flv", "m2ts", "m4v", "mkv", "mov", "mp4",
+        "mpeg", "mpg", "mts", "ogv", "ts", "webm", "wmv"
+      ]);
+
+      function isVideoFile(file) {
+        const extension = file.name.split(".").pop()?.toLowerCase();
+        return file.type.startsWith("video/") || VIDEO_EXTENSIONS.has(extension);
+      }
+
+      function importedFileName(file) {
+        const parts = (file.webkitRelativePath || file.name).split("/");
+        return parts.length > 1 ? parts.slice(1).join("/") : file.name;
+      }
+
+      function editableDuration(seconds) {
+        const whole = Math.max(0, Math.round(seconds));
+        const hours = Math.floor(whole / 3600);
+        const minutes = Math.floor((whole % 3600) / 60);
+        const remainder = String(whole % 60).padStart(2, "0");
+        return hours
+          ? `${hours}:${String(minutes).padStart(2, "0")}:${remainder}`
+          : `${minutes}:${remainder}`;
+      }
+
+      function readVideoDuration(file) {
+        return new Promise((resolve, reject) => {
+          const video = document.createElement("video");
+          const objectUrl = URL.createObjectURL(file);
+          const cleanup = () => {
+            window.clearTimeout(timeout);
+            video.onloadedmetadata = null;
+            video.onerror = null;
+            video.removeAttribute("src");
+            video.load();
+            URL.revokeObjectURL(objectUrl);
+          };
+          const fail = () => {
+            cleanup();
+            reject(new Error(`Could not read ${file.name}`));
+          };
+          const timeout = window.setTimeout(fail, 15000);
+          video.preload = "metadata";
+          video.onloadedmetadata = () => {
+            const duration = video.duration;
+            cleanup();
+            Number.isFinite(duration) && duration >= 0 ? resolve(duration) : reject(new Error(`Invalid duration for ${file.name}`));
+          };
+          video.onerror = fail;
+          video.src = objectUrl;
+        });
+      }
+
+      async function mapWithConcurrency(items, limit, mapper) {
+        const results = new Array(items.length);
+        let nextIndex = 0;
+        async function worker() {
+          while (nextIndex < items.length) {
+            const index = nextIndex++;
+            try {
+              results[index] = { status: "fulfilled", value: await mapper(items[index]) };
+            } catch (reason) {
+              results[index] = { status: "rejected", reason };
+            }
+          }
+        }
+        await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+        return results;
+      }
+
+      function showImportStatus(message, isError = false, persist = false) {
+        window.clearTimeout(importStatusTimer);
+        importStatus.textContent = message;
+        importStatus.classList.toggle("is-error", isError);
+        importStatus.classList.add("is-visible");
+        if (!persist) {
+          importStatusTimer = window.setTimeout(() => importStatus.classList.remove("is-visible"), 5000);
+        }
+      }
+
+      async function importFolder(personId, files) {
+        const person = people.find((item) => item.id === personId);
+        if (!person) return;
+
+        const videos = files.filter(isVideoFile).sort((a, b) =>
+          importedFileName(a).localeCompare(importedFileName(b), undefined, { numeric: true, sensitivity: "base" })
+        );
+        if (!videos.length) {
+          showImportStatus("No video files were found in that folder.", true);
+          return;
+        }
+
+        importingPeople.add(personId);
+        render();
+        showImportStatus(`Reading duration 0 of ${videos.length}...`, false, true);
+        let completed = 0;
+        const results = await mapWithConcurrency(videos, 4, async (file) => {
+          try {
+            const duration = await readVideoDuration(file);
+            return { file, duration };
+          } finally {
+            completed += 1;
+            showImportStatus(`Reading duration ${completed} of ${videos.length}...`, false, true);
+          }
+        });
+
+        const currentPerson = people.find((item) => item.id === personId);
+        importingPeople.delete(personId);
+        if (!currentPerson) {
+          render();
+          showImportStatus("The person was removed before the folder finished importing.", true);
+          return;
+        }
+
+        const imported = results
+          .filter((result) => result.status === "fulfilled")
+          .map((result) => result.value);
+        const failed = results.length - imported.length;
+        if (imported.length) {
+          recordCurrentState();
+          const hasOnlyBlankStarter = currentPerson.rows.length === 1 &&
+            !String(currentPerson.rows[0].seconds).trim() &&
+            !String(currentPerson.rows[0].fileNumber).trim();
+          if (hasOnlyBlankStarter) currentPerson.rows = [];
+          imported.forEach(({ file, duration }) => {
+            const row = newRow(currentPerson.rows.length + 1);
+            row.seconds = editableDuration(duration);
+            row.fileNumber = importedFileName(file);
+            currentPerson.rows.push(row);
+          });
+          renumberVideoRows(currentPerson);
+          save();
+        }
+        render();
+
+        const importedSeconds = imported.reduce((sum, item) => sum + Math.round(item.duration), 0);
+        const resultMessage = `${imported.length} video${imported.length === 1 ? "" : "s"} added (${friendlyTime(importedSeconds)})` +
+          (failed ? `; ${failed} could not be read.` : ".");
+        showImportStatus(resultMessage, !imported.length || failed > 0);
+      }
+
       function rowMarkup(person, row, rowIndex) {
         const personName = escapeHtml(person.name || "person");
         return `
@@ -1334,10 +1532,12 @@
 
       function personMarkup(person, index) {
         const seconds = totalSeconds(person);
+        const isImporting = importingPeople.has(person.id);
         return `
           <article class="person-panel" data-person-id="${person.id}">
             <div class="person-toolbar">
               <input class="name-input" data-person-field="name" value="${escapeHtml(person.name)}" maxlength="60" aria-label="Name for person ${index + 1}">
+              <button class="icon-button import-folder${isImporting ? " is-loading" : ""}" data-action="import-folder" type="button" title="Import videos from a folder" aria-label="Import videos from a folder for ${escapeHtml(person.name)}" ${isImporting ? "disabled" : ""}>&#128193;</button>
               <button class="icon-button" data-action="add-row" type="button" title="Add video row" aria-label="Add video row">+</button>
               <button class="icon-button delete-person" data-action="delete-person" type="button" title="Remove person" aria-label="Remove ${escapeHtml(person.name)}">&times;</button>
             </div>
@@ -1364,6 +1564,10 @@
           <div class="sidebar-stack">
             <aside class="notes-panel" aria-label="Notes">
               <h2 class="notes-heading"><span class="notes-heading-icon" aria-hidden="true">#</span> Notes</h2>
+              <div class="folder-instruction">
+                <span class="folder-instruction-icon" aria-hidden="true">&#128193;</span>
+                <span>Click the folder icon beside a person to calculate all videos in a folder.</span>
+              </div>
               <div class="notes-shortcuts" aria-label="Keyboard shortcuts">
                 <kbd>Ctrl+Z</kbd><span>Undo</span>
                 <span class="shortcut-divider" aria-hidden="true">&bull;</span>
@@ -1503,6 +1707,13 @@
         const person = findPerson(button);
         if (!person) return;
 
+        if (button.dataset.action === "import-folder") {
+          importPersonId = person.id;
+          folderInput.value = "";
+          folderInput.click();
+          return;
+        }
+
         if (button.dataset.action === "delete-row") {
           const row = findRow(person, button);
           if (!row) return;
@@ -1534,6 +1745,13 @@
           save();
           render();
         }
+      });
+
+      folderInput.addEventListener("change", () => {
+        const personId = importPersonId;
+        const files = Array.from(folderInput.files || []);
+        importPersonId = null;
+        if (personId && files.length) importFolder(personId, files);
       });
 
       grid.addEventListener("input", (event) => {
