@@ -1842,7 +1842,7 @@
       function elapsedMinuteAnnouncement(minutes) {
         const words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"];
         const amount = words[minutes] || String(minutes);
-        return `${amount} ${minutes === 1 ? "minute" : "minutes"} elapsed`;
+        return `${amount} ${minutes === 1 ? "minute" : "minutes"}`;
       }
 
       function speakCountdown(message, alwaysSpeak = false) {
