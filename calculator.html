@@ -1423,7 +1423,7 @@
         <header class="countdown-header">
           <div>
             <h2>Voice countdown</h2>
-            <p>Set up to 1,200 seconds (20 minutes).</p>
+            <p>Set up to 1,200 seconds (20 minutes). Final elapsed time is always spoken.</p>
           </div>
           <div class="countdown-options">
             <label class="voice-select-label" for="countdownVoice">Voice preference
@@ -1432,7 +1432,8 @@
               </select>
             </label>
             <label class="hotkey-toggle" title="Press C to start; press C again to stop"><input id="countdownHotkeyEnabled" type="checkbox" checked> Enable <kbd>C</kbd> toggle</label>
-            <label class="voice-toggle"><input id="voiceEnabled" type="checkbox" checked> Voice on</label>
+            <label class="voice-toggle"><input id="voiceEnabled" type="checkbox" checked> Speak seconds</label>
+            <label class="voice-toggle"><input id="minuteAnnouncements" type="checkbox" checked> Announce each minute</label>
           </div>
         </header>
         <div class="countdown-body">
@@ -1480,6 +1481,7 @@
       const TARGET_STORAGE_KEY = "video-time-sheet-daily-target-v1";
       const COUNTDOWN_LOG_STORAGE_KEY = "video-time-sheet-countdown-log-v1";
       const COUNTDOWN_VOICE_STORAGE_KEY = "video-time-sheet-countdown-voice-v1";
+      const COUNTDOWN_MINUTE_VOICE_STORAGE_KEY = "video-time-sheet-minute-voice-v1";
       const DEFAULT_PRESET = "Operator Name:\nTask:\nMinutes:\nGear:";
       const grid = document.querySelector("#peopleGrid");
       const worksheet = document.querySelector("#worksheet");
@@ -1506,6 +1508,7 @@
       const voiceEnabled = document.querySelector("#voiceEnabled");
       const countdownHotkeyEnabled = document.querySelector("#countdownHotkeyEnabled");
       const countdownVoice = document.querySelector("#countdownVoice");
+      const minuteAnnouncements = document.querySelector("#minuteAnnouncements");
       const countdownLogList = document.querySelector("#countdownLogList");
       const countdownLogTotal = document.querySelector("#countdownLogTotal");
       const countdownLogExport = document.querySelector("#countdownLogExport");
@@ -1535,8 +1538,11 @@
       let countdownElapsedBeforeRun = 0;
       let countdownRunStartedAt = 0;
       let availableCountdownVoices = [];
+      let lastElapsedMinuteAnnounced = 0;
       const importingPeople = new Set();
       const knownPersonTotals = new Map();
+
+      minuteAnnouncements.checked = localStorage.getItem(COUNTDOWN_MINUTE_VOICE_STORAGE_KEY) !== "false";
 
       if (window.matchMedia("(pointer: fine)").matches && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         let pointerX = 0;
@@ -1833,8 +1839,14 @@
         ].filter(Boolean).join(" and ") + " remaining";
       }
 
-      function speakCountdown(message) {
-        if (!voiceEnabled.checked || !("speechSynthesis" in window)) return;
+      function elapsedMinuteAnnouncement(minutes) {
+        const words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"];
+        const amount = words[minutes] || String(minutes);
+        return `${amount} ${minutes === 1 ? "minute" : "minutes"} elapsed`;
+      }
+
+      function speakCountdown(message, alwaysSpeak = false) {
+        if ((!alwaysSpeak && !voiceEnabled.checked) || !("speechSynthesis" in window)) return;
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(String(message));
         const selectedVoice = availableCountdownVoices.find((voice) => voice.voiceURI === countdownVoice.value);
@@ -1871,7 +1883,7 @@
         addCountdownLog(countdownSessionTotal);
         const completed = elapsedDurationText(countdownSessionTotal);
         countdownStatus.textContent = `Time is up • ${completed} completed`;
-        speakCountdown(`Time is up. You completed ${completed}.`);
+        speakCountdown(`Time is up. You completed ${completed}.`, true);
         playCompletionSound();
       }
 
@@ -1894,7 +1906,7 @@
         countdownStart.textContent = "Start again";
         countdownPause.disabled = true;
         setCountdownInputsDisabled(false);
-        speakCountdown(`Stopped. You completed ${completed}.`);
+        speakCountdown(`Stopped. You completed ${completed}.`, true);
         return true;
       }
 
@@ -1904,7 +1916,14 @@
         if (nextRemaining !== countdownRemaining) {
           countdownRemaining = nextRemaining;
           updateCountdownDisplay();
-          if (countdownRemaining > 0 && countdownRemaining !== lastAnnouncedSecond) {
+          const elapsedMinutes = Math.floor((countdownSessionTotal - countdownRemaining) / 60);
+          const reachedNewMinute = elapsedMinutes > lastElapsedMinuteAnnounced;
+          if (reachedNewMinute) {
+            lastElapsedMinuteAnnounced = elapsedMinutes;
+            if (minuteAnnouncements.checked && countdownRemaining > 0) {
+              speakCountdown(elapsedMinuteAnnouncement(elapsedMinutes), true);
+            }
+          } else if (countdownRemaining > 0 && countdownRemaining !== lastAnnouncedSecond) {
             lastAnnouncedSecond = countdownRemaining;
             speakCountdown(countdownRemaining);
           }
@@ -1924,6 +1943,7 @@
           countdownRemaining = requested;
           countdownSessionTotal = requested;
           countdownElapsedBeforeRun = 0;
+          lastElapsedMinuteAnnounced = 0;
           countdownStarted = true;
         }
         countdownSecondsInput.setCustomValidity("");
@@ -1963,6 +1983,7 @@
         countdownRunning = false;
         countdownStarted = false;
         countdownElapsedBeforeRun = 0;
+        lastElapsedMinuteAnnounced = 0;
         window.clearInterval(countdownInterval);
         countdownInterval = 0;
         window.speechSynthesis?.cancel();
@@ -2746,15 +2767,20 @@
         else if (countdownRunning && countdownRemaining > 0) speakCountdown(countdownRemaining);
       });
 
+      minuteAnnouncements.addEventListener("change", () => {
+        localStorage.setItem(COUNTDOWN_MINUTE_VOICE_STORAGE_KEY, String(minuteAnnouncements.checked));
+      });
+
       countdownVoice.addEventListener("change", () => {
         if (countdownVoice.value) localStorage.setItem(COUNTDOWN_VOICE_STORAGE_KEY, countdownVoice.value);
         else localStorage.removeItem(COUNTDOWN_VOICE_STORAGE_KEY);
-        if (voiceEnabled.checked) speakCountdown("Voice selected");
+        speakCountdown("Voice selected", true);
       });
 
       if (!("speechSynthesis" in window)) {
         voiceEnabled.checked = false;
         voiceEnabled.disabled = true;
+        minuteAnnouncements.disabled = true;
         countdownVoice.disabled = true;
         voiceEnabled.parentElement.title = "Voice countdown is not supported by this browser.";
       } else {
