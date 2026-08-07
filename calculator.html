@@ -1428,7 +1428,7 @@
           <div class="countdown-options">
             <label class="voice-select-label" for="countdownVoice">Voice preference
               <select class="voice-select" id="countdownVoice" aria-label="Countdown voice preference">
-                <option value="">System default</option>
+                <option value="">Automatic English</option>
               </select>
             </label>
             <label class="hotkey-toggle" title="Press C to start; press C again to stop"><input id="countdownHotkeyEnabled" type="checkbox" checked> Enable <kbd>C</kbd> toggle</label>
@@ -1808,14 +1808,21 @@
       function populateCountdownVoices() {
         if (!("speechSynthesis" in window)) return;
         const preferredVoice = countdownVoice.value || localStorage.getItem(COUNTDOWN_VOICE_STORAGE_KEY) || "";
-        availableCountdownVoices = window.speechSynthesis.getVoices().slice().sort((a, b) =>
-          a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name)
-        );
+        const deviceVoices = window.speechSynthesis.getVoices();
+        const englishVoices = deviceVoices
+          .filter((voice) => /^en(?:-|_)/i.test(voice.lang))
+          .sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name));
+        const japaneseVoices = deviceVoices
+          .filter((voice) => /^ja(?:-|_)/i.test(voice.lang))
+          .sort((a, b) => Number(b.default) - Number(a.default) || Number(b.localService) - Number(a.localService) || a.name.localeCompare(b.name));
+        availableCountdownVoices = japaneseVoices.length
+          ? [...englishVoices, japaneseVoices[0]]
+          : englishVoices;
 
         countdownVoice.replaceChildren();
         const defaultOption = document.createElement("option");
         defaultOption.value = "";
-        defaultOption.textContent = "System default";
+        defaultOption.textContent = "Automatic English";
         countdownVoice.append(defaultOption);
 
         availableCountdownVoices.forEach((voice) => {
@@ -1825,7 +1832,9 @@
           countdownVoice.append(option);
         });
 
-        countdownVoice.value = availableCountdownVoices.some((voice) => voice.voiceURI === preferredVoice) ? preferredVoice : "";
+        const hasPreferredVoice = availableCountdownVoices.some((voice) => voice.voiceURI === preferredVoice);
+        countdownVoice.value = hasPreferredVoice ? preferredVoice : "";
+        if (preferredVoice && !hasPreferredVoice) localStorage.removeItem(COUNTDOWN_VOICE_STORAGE_KEY);
       }
 
       function countdownAriaLabel(seconds) {
@@ -1851,6 +1860,7 @@
         const utterance = new SpeechSynthesisUtterance(String(message));
         const selectedVoice = availableCountdownVoices.find((voice) => voice.voiceURI === countdownVoice.value);
         if (selectedVoice) utterance.voice = selectedVoice;
+        utterance.lang = selectedVoice?.lang || "en-US";
         utterance.rate = typeof message === "number" ? 1.7 : 1.15;
         utterance.volume = 1;
         window.speechSynthesis.speak(utterance);
