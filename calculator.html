@@ -893,6 +893,90 @@
       text-align: right;
     }
 
+    .time-converter {
+      max-width: 1120px;
+      display: grid;
+      grid-template-columns: auto minmax(120px, 220px) 24px minmax(140px, 1fr) auto;
+      align-items: end;
+      gap: 12px;
+      margin: 0 auto 18px;
+      padding: 14px 16px;
+      border-block: 1px solid var(--line-strong);
+      background: rgba(18, 22, 19, 0.72);
+    }
+
+    .time-converter-title {
+      align-self: center;
+      margin: 0 8px 0 0;
+      font-size: 13px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .converter-field { min-width: 0; display: grid; gap: 6px; }
+
+    .converter-field label {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .converter-input,
+    .converter-output {
+      width: 100%;
+      min-width: 0;
+      height: 40px;
+      padding: 0 11px;
+      border: 1px solid var(--line-strong);
+      border-radius: 3px;
+      background: #111512;
+      color: var(--text);
+      font: inherit;
+      font-size: 15px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .converter-input:focus {
+      border-color: var(--green-bright);
+      outline: 0;
+      box-shadow: 0 0 0 3px var(--green-soft);
+    }
+
+    .converter-output {
+      display: flex;
+      align-items: center;
+      color: var(--green-bright);
+      font-weight: 800;
+    }
+
+    .converter-arrow {
+      align-self: end;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+    }
+
+    .converter-copy {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      border: 1px solid var(--green);
+      border-radius: 3px;
+      background: var(--green-soft);
+      color: var(--green-bright);
+      cursor: pointer;
+    }
+
+    .converter-copy:hover { border-color: var(--green-bright); background: rgba(118, 185, 0, 0.2); }
+    .converter-copy:focus-visible { outline: 2px solid var(--green-bright); outline-offset: 2px; }
+    .converter-copy:disabled { opacity: 0.35; cursor: not-allowed; }
+    .converter-copy svg { width: 18px; height: 18px; }
+    .converter-status { grid-column: 2 / -1; align-self: center; min-height: 14px; color: var(--muted); font-size: 11px; }
+
     .app-tabs {
       max-width: 1500px;
       display: flex;
@@ -1325,6 +1409,9 @@
       .sidebar-stack { width: 300px; min-width: 300px; margin-left: 12px; }
       .summary-bar { grid-template-columns: 1fr; gap: 8px; }
       .summary-meta { text-align: left; }
+      .time-converter { grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr) auto; gap: 8px; }
+      .time-converter-title { grid-column: 1 / -1; }
+      .converter-status { grid-column: 1 / -1; min-height: 14px; }
       .app-tabs { width: 100%; }
       .app-tab { flex: 1; padding-inline: 10px; }
       .countdown-header { align-items: flex-start; padding: 16px; }
@@ -1404,6 +1491,23 @@
 
     <div id="worksheetPanel" role="tabpanel" aria-labelledby="worksheetTab">
 
+      <section class="time-converter" aria-labelledby="worksheetConverterTitle">
+        <h2 class="time-converter-title" id="worksheetConverterTitle">Minutes to seconds</h2>
+        <div class="converter-field">
+          <label for="worksheetMinutes">Minutes</label>
+          <input class="converter-input" id="worksheetMinutes" data-minute-input type="number" min="0" step="any" value="1" inputmode="decimal">
+        </div>
+        <span class="converter-arrow" aria-hidden="true">&#8594;</span>
+        <div class="converter-field">
+          <label for="worksheetSeconds">Seconds</label>
+          <output class="converter-output" id="worksheetSeconds" data-seconds-output>60</output>
+        </div>
+        <button class="converter-copy" data-copy-seconds type="button" aria-label="Copy seconds" title="Copy seconds">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+        </button>
+        <span class="converter-status" data-copy-status role="status" aria-live="polite"></span>
+      </section>
+
       <section class="worksheet-shell" id="worksheet" aria-label="Video timing worksheet">
         <div class="people-grid" id="peopleGrid"></div>
       </section>
@@ -1418,6 +1522,22 @@
     </div>
 
     <section id="countdownPanel" role="tabpanel" aria-labelledby="countdownTab" hidden>
+      <section class="time-converter" aria-labelledby="countdownConverterTitle">
+        <h2 class="time-converter-title" id="countdownConverterTitle">Minutes to seconds</h2>
+        <div class="converter-field">
+          <label for="countdownMinutes">Minutes</label>
+          <input class="converter-input" id="countdownMinutes" data-minute-input type="number" min="0" step="any" value="1" inputmode="decimal">
+        </div>
+        <span class="converter-arrow" aria-hidden="true">&#8594;</span>
+        <div class="converter-field">
+          <label for="countdownConvertedSeconds">Seconds</label>
+          <output class="converter-output" id="countdownConvertedSeconds" data-seconds-output>60</output>
+        </div>
+        <button class="converter-copy" data-copy-seconds type="button" aria-label="Copy seconds" title="Copy seconds">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+        </button>
+        <span class="converter-status" data-copy-status role="status" aria-live="polite"></span>
+      </section>
       <div class="countdown-layout">
         <div class="countdown-shell">
         <header class="countdown-header">
@@ -1513,6 +1633,9 @@
       const countdownLogTotal = document.querySelector("#countdownLogTotal");
       const countdownLogExport = document.querySelector("#countdownLogExport");
       const countdownLogClear = document.querySelector("#countdownLogClear");
+      const minuteConverterInputs = [...document.querySelectorAll("[data-minute-input]")];
+      const secondsConverterOutputs = [...document.querySelectorAll("[data-seconds-output]")];
+      const secondsCopyButtons = [...document.querySelectorAll("[data-copy-seconds]")];
 
       let people = load();
       let notes = localStorage.getItem(NOTES_STORAGE_KEY) || "";
@@ -2529,6 +2652,49 @@
         }, 1800);
       }
 
+      function convertedSeconds(minutes) {
+        const value = Number(minutes);
+        if (minutes.trim() === "" || !Number.isFinite(value) || value < 0) return null;
+        return String(Number((value * 60).toFixed(6)));
+      }
+
+      function updateMinuteConverters(source) {
+        const seconds = convertedSeconds(source.value);
+        minuteConverterInputs.forEach((input) => {
+          if (input !== source) input.value = source.value;
+        });
+        secondsConverterOutputs.forEach((output) => { output.textContent = seconds ?? "--"; });
+        secondsCopyButtons.forEach((button) => { button.disabled = seconds === null; });
+        document.querySelectorAll("[data-copy-status]").forEach((status) => { status.textContent = ""; });
+      }
+
+      async function copyConvertedSeconds(button) {
+        const converter = button.closest(".time-converter");
+        const value = converter?.querySelector("[data-seconds-output]")?.textContent;
+        const status = converter?.querySelector("[data-copy-status]");
+        if (!value || value === "--" || !status) return;
+
+        try {
+          if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
+          await navigator.clipboard.writeText(value);
+          status.textContent = `${value} seconds copied`;
+        } catch (_) {
+          const fallback = document.createElement("textarea");
+          fallback.value = value;
+          fallback.setAttribute("readonly", "");
+          fallback.style.position = "fixed";
+          fallback.style.opacity = "0";
+          document.body.append(fallback);
+          fallback.select();
+          status.textContent = document.execCommand("copy") ? `${value} seconds copied` : "Copy failed";
+          fallback.remove();
+        }
+
+        window.setTimeout(() => {
+          if (status.isConnected) status.textContent = "";
+        }, 1800);
+      }
+
       grid.addEventListener("click", (event) => {
         const button = event.target.closest("button[data-action]");
         if (!button) return;
@@ -2707,6 +2873,14 @@
           selectTab(nextTab);
           nextTab.focus();
         });
+      });
+
+      minuteConverterInputs.forEach((input) => {
+        input.addEventListener("input", () => updateMinuteConverters(input));
+      });
+
+      secondsCopyButtons.forEach((button) => {
+        button.addEventListener("click", () => copyConvertedSeconds(button));
       });
 
       document.querySelectorAll("[data-countdown-seconds]").forEach((button) => {
