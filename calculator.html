@@ -515,15 +515,32 @@
 
     .panel-footer {
       min-height: 62px;
-      display: grid;
-      grid-template-columns: 1fr auto;
-      align-items: center;
-      gap: 12px;
+      display: block;
       padding: 10px 14px;
       border-top: 1px solid #465048;
       background:
         linear-gradient(90deg, rgba(118, 185, 0, 0.045), transparent 55%),
         linear-gradient(180deg, #252c26, #202521);
+    }
+
+    .role-totals {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .role-total {
+      min-width: 0;
+      padding: 8px 10px;
+      border: 1px solid #3d493f;
+      border-radius: 4px;
+      background: rgba(7, 10, 8, 0.32);
+    }
+
+    .role-total-combined {
+      border-color: rgba(118, 185, 0, 0.48);
+      background: rgba(118, 185, 0, 0.07);
+      text-align: right;
     }
 
     .panel-footer-label {
@@ -541,19 +558,21 @@
     }
 
     .person-total {
+      display: block;
+      margin-top: 3px;
       color: var(--text);
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 850;
       font-variant-numeric: tabular-nums;
-      text-align: right;
       text-shadow: 0 0 18px rgba(255, 255, 255, 0.07);
     }
 
     .person-total span { color: var(--green-bright); font-size: 11px; font-weight: 800; }
 
     .target-slot {
-      grid-column: 1 / -1;
       min-width: 0;
+      display: block;
+      margin-top: 10px;
     }
 
     .target-status {
@@ -2288,6 +2307,36 @@
         return person.rows.reduce((sum, row) => sum + parseDuration(row.seconds), 0);
       }
 
+      function roleTotals(person) {
+        return person.rows.reduce((totals, row, rowIndex) => {
+          const role = person.roleMode === "l1"
+            ? "l1"
+            : person.roleMode === "l2"
+              ? "l2"
+              : rowIndex % 2 === 0 ? "l1" : "l2";
+          totals[role] += parseDuration(row.seconds);
+          return totals;
+        }, { l1: 0, l2: 0 });
+      }
+
+      function roleTotalsMarkup(person) {
+        const totals = roleTotals(person);
+        const combined = totals.l1 + totals.l2;
+        return `
+          <div class="role-total">
+            <span class="panel-footer-label">L1 Total</span>
+            <strong class="person-total">${clockTime(totals.l1)} <span>MIN:SEC</span></strong>
+          </div>
+          <div class="role-total">
+            <span class="panel-footer-label">L2 Total</span>
+            <strong class="person-total">${clockTime(totals.l2)} <span>MIN:SEC</span></strong>
+          </div>
+          <div class="role-total role-total-combined">
+            <span class="panel-footer-label">Combined</span>
+            <strong class="person-total">${clockTime(combined)} <span>MIN:SEC</span></strong>
+          </div>`;
+      }
+
       function friendlyTime(seconds) {
         const whole = Math.max(0, Math.floor(seconds));
         return `${Math.floor(whole / 60)} min ${whole % 60} sec`;
@@ -2542,11 +2591,7 @@
               </table>
             </div>
             <footer class="panel-footer">
-              <div>
-                <span class="panel-footer-label">Total Time</span>
-                <span class="panel-footer-detail">${friendlyTime(seconds)}</span>
-              </div>
-              <div class="person-total">${clockTime(seconds)} <span>MIN:SEC</span></div>
+              <div class="role-totals">${roleTotalsMarkup(person)}</div>
               <div class="target-slot">${targetMarkup(seconds)}</div>
             </footer>
           </article>`;
@@ -2835,8 +2880,7 @@
           const previousSeconds = knownPersonTotals.get(person.id) ?? seconds;
           knownPersonTotals.set(person.id, seconds);
           const panel = event.target.closest(".person-panel");
-          panel.querySelector(".panel-footer-detail").textContent = friendlyTime(seconds);
-          panel.querySelector(".person-total").innerHTML = `${clockTime(seconds)} <span>MIN:SEC</span>`;
+          panel.querySelector(".role-totals").innerHTML = roleTotalsMarkup(person);
           panel.querySelector(".target-slot").innerHTML = targetMarkup(seconds);
           updateCombinedTotal();
 
