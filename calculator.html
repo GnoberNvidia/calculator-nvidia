@@ -391,8 +391,9 @@
       table-layout: fixed;
     }
 
-    col.video-col { width: 31%; }
-    col.seconds-col { width: 26%; }
+    col.video-col { width: 26%; }
+    col.seconds-col { width: 25%; }
+    col.role-col { width: 72px; }
     col.file-col { width: auto; }
     col.delete-col { width: 36px; }
 
@@ -418,6 +419,35 @@
     th + th { border-left: 1px solid #39443c; }
 
     .action-heading { padding: 0; }
+
+    .role-heading { padding: 4px 6px; }
+
+    .role-select {
+      width: 100%;
+      height: 30px;
+      padding: 0 5px;
+      border: 1px solid #59665b;
+      border-radius: 3px;
+      outline: 0;
+      background: #19201a;
+      color: #f7faf7;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .role-select:hover { border-color: var(--green); }
+    .role-select:focus-visible { outline: 2px solid var(--green-bright); outline-offset: 1px; }
+
+    .role-value {
+      height: 43px;
+      display: grid;
+      place-items: center;
+      color: var(--green-bright);
+      font-size: 13px;
+      font-weight: 850;
+      letter-spacing: 0.04em;
+      user-select: none;
+    }
 
     tbody tr { height: 43px; }
     tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.018); }
@@ -1778,7 +1808,7 @@
       }
 
       function newPerson(number) {
-        return { id: uid(), name: `Person ${number}`, rows: [newRow(1)] };
+        return { id: uid(), name: `Person ${number}`, roleMode: "alternate", rows: [newRow(1)] };
       }
 
       function load() {
@@ -2482,10 +2512,12 @@
 
       function rowMarkup(person, row, rowIndex) {
         const personName = escapeHtml(person.name || "person");
+        const role = person.roleMode === "l1" ? "L1" : person.roleMode === "l2" ? "L2" : rowIndex % 2 === 0 ? "L1" : "L2";
         return `
           <tr data-row-id="${row.id}">
             <td><input class="cell-input" data-field="videoNumber" type="number" min="0" step="1" inputmode="numeric" value="${escapeHtml(row.videoNumber)}" aria-label="Video number ${rowIndex + 1} for ${personName}"></td>
             <td><input class="cell-input seconds-input" data-field="seconds" type="text" inputmode="text" value="${escapeHtml(row.seconds)}" placeholder="0 or 0:00" aria-label="Seconds or minutes and seconds for row ${rowIndex + 1} of ${personName}"></td>
+            <td><span class="role-value" aria-label="Role ${role}">${role}</span></td>
             <td><input class="cell-input" data-field="fileNumber" type="text" value="${escapeHtml(row.fileNumber)}" placeholder="File no." maxlength="40" aria-label="File number for row ${rowIndex + 1} of ${personName}"></td>
             <td class="row-delete-cell"><button class="delete-row" data-action="delete-row" type="button" title="Delete video row" aria-label="Delete video row ${rowIndex + 1} for ${personName}">&times;</button></td>
           </tr>`;
@@ -2504,8 +2536,8 @@
             </div>
             <div class="table-wrap">
               <table>
-                <colgroup><col class="video-col"><col class="seconds-col"><col class="file-col"><col class="delete-col"></colgroup>
-                <thead><tr><th>No. of Videos</th><th>Minutes:Seconds</th><th>File Number</th><th class="action-heading" aria-label="Row actions"></th></tr></thead>
+                <colgroup><col class="video-col"><col class="seconds-col"><col class="role-col"><col class="file-col"><col class="delete-col"></colgroup>
+                <thead><tr><th>No. of Videos</th><th>Minutes:Seconds</th><th class="role-heading"><select class="role-select" data-person-field="roleMode" aria-label="Role pattern for ${escapeHtml(person.name)}"><option value="alternate"${!person.roleMode || person.roleMode === "alternate" ? " selected" : ""}>Role</option><option value="l1"${person.roleMode === "l1" ? " selected" : ""}>All L1</option><option value="l2"${person.roleMode === "l2" ? " selected" : ""}>All L2</option></select></th><th>File Number</th><th class="action-heading" aria-label="Row actions"></th></tr></thead>
                 <tbody>${person.rows.map((row, rowIndex) => rowMarkup(person, row, rowIndex)).join("")}</tbody>
               </table>
             </div>
@@ -2821,6 +2853,15 @@
       });
 
       grid.addEventListener("change", (event) => {
+        if (event.target.matches('.role-select')) {
+          const person = findPerson(event.target);
+          if (!person) return;
+          recordCurrentState();
+          person.roleMode = event.target.value;
+          save();
+          render();
+          return;
+        }
         if (event.target.matches(".seconds-input") && !applyDurationValidity(event.target)) {
           historyStatus.textContent = event.target.validationMessage;
           event.target.reportValidity();
