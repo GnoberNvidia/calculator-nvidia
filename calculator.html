@@ -2065,7 +2065,7 @@
         addCountdownLog(countdownSessionTotal);
         const completed = elapsedDurationText(countdownSessionTotal);
         countdownStatus.textContent = `Time is up • ${completed} completed`;
-        speakCountdown(`Time is up. You completed ${completed}.`, true);
+        speakCountdown("Finish Countdown", true);
         playCompletionSound();
       }
 
@@ -2140,7 +2140,7 @@
         countdownPause.textContent = "Pause";
         setCountdownInputsDisabled(true);
         updateCountdownDisplay();
-        speakCountdown(countdownRemaining);
+        speakCountdown("Start Countdown", true);
         window.clearInterval(countdownInterval);
         countdownInterval = window.setInterval(countdownTick, 100);
         return true;
@@ -2730,9 +2730,14 @@
       }
 
       function convertedSeconds(minutes) {
-        const value = Number(minutes);
-        if (minutes.trim() === "" || !Number.isFinite(value) || value < 0) return null;
-        return String(Number((value * 60).toFixed(6)));
+        const value = minutes.trim();
+        const match = value.match(/^(\d+)(?:\.(\d{1,2}))?$/);
+        if (!match) return null;
+
+        const wholeMinutes = Number(match[1]);
+        const remainingSeconds = Number(match[2] || 0);
+        if (remainingSeconds >= 60) return null;
+        return String((wholeMinutes * 60) + remainingSeconds);
       }
 
       function updateMinuteConverters(source) {
